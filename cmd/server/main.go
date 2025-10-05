@@ -13,10 +13,10 @@ import (
 func main() {
 	metricRepo := repository.NewMemStorage()
 	metricService := application.NewMetricService(metricRepo)
-	metricsHandler := handler.NewMetricsHandler(metricService)
+	router := handler.NewRouter(metricService)
 
 	mux := http.NewServeMux()
-	metricsHandler.RegisterRoutes(mux)
+	router.RegisterRoutes(mux)
 
 	recoveryMux := recoverMiddleware(mux)
 
