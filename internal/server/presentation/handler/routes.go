@@ -21,4 +21,9 @@ func NewRouter(metricUpdater application.MetricUpdater) *Router {
 func (r *Router) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/update/counter/", r.counterHandler.UpdateCounter)
 	mux.HandleFunc("/update/gauge/", r.gaugeHandler.UpdateGauge)
+	mux.HandleFunc("/update/", r.handleUnknownUpdate)
+}
+
+func (r *Router) handleUnknownUpdate(w http.ResponseWriter, req *http.Request) {
+	http.Error(w, "Unknown metric type", http.StatusBadRequest)
 }
