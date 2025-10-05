@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/application"
@@ -25,5 +26,6 @@ func (r *Router) RegisterRoutes(mux *http.ServeMux) {
 }
 
 func (r *Router) handleUnknownUpdate(w http.ResponseWriter, req *http.Request) {
+	log.Printf("handleUnknownUpdate called for URL: %s", req.URL.Path)
 	http.Error(w, "Unknown metric type", http.StatusBadRequest)
 }
