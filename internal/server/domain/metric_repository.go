@@ -1,5 +1,6 @@
 package domain
 
 type MetricRepository interface {
-	Put(metrics *Metrics)
+	Save(metrics *Metrics)
+	GetMetric(metricType, metricName string) *Metrics
 }
