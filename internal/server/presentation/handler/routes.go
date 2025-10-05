@@ -1,8 +1,9 @@
 package handler
 
 import (
+	"net/http"
+
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/application"
-	
 )
 
 type Router struct {
