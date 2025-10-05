@@ -19,8 +19,11 @@ func NewMetricService(repo domain.MetricRepository) MetricUpdater {
 var _ MetricUpdater = (*MetricService)(nil)
 
 func (s *MetricService) MetricUpdate(metricType string, metricName string, metricValue string) error {
+
 	metric := s.repo.GetMetric(metricType, metricName)
-	metric.MType = metricType
+	if metric == nil {
+		metric = domain.CreateMetric(metricName, metricType)
+	}
 	if err := metric.UpdateMetric(metricValue); err != nil {
 		return err
 	}

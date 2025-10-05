@@ -18,7 +18,7 @@ func NewMetricsHandler(metricUpdater application.MetricUpdater) *MetricsHandler 
 }
 
 func (h *MetricsHandler) RegisterRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("/update", h.UpdateMetric)
+	mux.HandleFunc("/update/", h.UpdateMetric)
 }
 
 func (h *MetricsHandler) UpdateMetric(w http.ResponseWriter, r *http.Request) {
