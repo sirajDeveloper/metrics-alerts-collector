@@ -26,7 +26,7 @@ func (h *CounterHandler) UpdateCounter(w http.ResponseWriter, r *http.Request) {
 	parts := strings.Split(path, "/")
 
 	if len(parts) != 2 {
-		http.Error(w, "Invalid path format", http.StatusBadRequest)
+		http.Error(w, "Invalid path format", http.StatusNotFound)
 		return
 	}
 
