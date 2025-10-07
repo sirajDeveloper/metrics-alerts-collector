@@ -1,4 +1,4 @@
-package application
+package usecase
 
 import (
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/domain"

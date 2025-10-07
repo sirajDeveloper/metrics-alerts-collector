@@ -1,4 +1,4 @@
-package handler
+package http
 
 import (
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/application"
@@ -6,23 +6,23 @@ import (
 	"strings"
 )
 
-type GaugeHandler struct {
+type CounterHandler struct {
 	metricUpdater application.MetricUpdater
 }
 
-func NewGaugeHandler(metricUpdater application.MetricUpdater) *GaugeHandler {
-	return &GaugeHandler{
+func NewCounterHandler(metricUpdater application.MetricUpdater) *CounterHandler {
+	return &CounterHandler{
 		metricUpdater: metricUpdater,
 	}
 }
 
-func (h *GaugeHandler) UpdateGauge(w http.ResponseWriter, r *http.Request) {
+func (h *CounterHandler) UpdateCounter(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	path := strings.TrimPrefix(r.URL.Path, "/update/gauge/")
+	path := strings.TrimPrefix(r.URL.Path, "/update/counter/")
 	parts := strings.Split(path, "/")
 
 	if len(parts) != 2 {
@@ -43,7 +43,7 @@ func (h *GaugeHandler) UpdateGauge(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.metricUpdater.MetricUpdate("gauge", metricName, metricValue); err != nil {
+	if err := h.metricUpdater.MetricUpdate("counter", metricName, metricValue); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}

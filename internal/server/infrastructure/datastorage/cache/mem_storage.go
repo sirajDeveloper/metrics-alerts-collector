@@ -1,7 +1,8 @@
-package repository
+package cache
 
 import (
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/domain"
+	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/domain/repository"
 )
 
 type MemStorage struct {
@@ -14,7 +15,7 @@ func NewMemStorage() *MemStorage {
 	}
 }
 
-var _ domain.MetricRepository = (*MemStorage)(nil)
+var _ repository.MetricRepository = (*MemStorage)(nil)
 
 func (m *MemStorage) GetMetric(mType, name string) *domain.Metrics {
 	for metrics := range m.cache {

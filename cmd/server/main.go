@@ -5,9 +5,9 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/application"
-	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/infrastructure/repository"
-	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/presentation/handler"
+	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/handler/http"
+	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/infrastructure/datastorage/cache"
+	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/usecase"
 )
 
 func main() {
