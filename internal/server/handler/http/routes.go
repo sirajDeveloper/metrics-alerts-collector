@@ -4,7 +4,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/application"
+	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/usecase"
 )
 
 type Router struct {
@@ -12,7 +12,7 @@ type Router struct {
 	gaugeHandler   *GaugeHandler
 }
 
-func NewRouter(metricUpdater application.MetricUpdater) *Router {
+func NewRouter(metricUpdater usecase.MetricUpdater) *Router {
 	return &Router{
 		counterHandler: NewCounterHandler(metricUpdater),
 		gaugeHandler:   NewGaugeHandler(metricUpdater),

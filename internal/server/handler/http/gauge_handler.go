@@ -1,16 +1,18 @@
 package http
 
 import (
-	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/application"
+	"fmt"
 	"net/http"
 	"strings"
+
+	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/usecase"
 )
 
 type GaugeHandler struct {
-	metricUpdater application.MetricUpdater
+	metricUpdater usecase.MetricUpdater
 }
 
-func NewGaugeHandler(metricUpdater application.MetricUpdater) *GaugeHandler {
+func NewGaugeHandler(metricUpdater usecase.MetricUpdater) *GaugeHandler {
 	return &GaugeHandler{
 		metricUpdater: metricUpdater,
 	}
@@ -21,6 +23,7 @@ func (h *GaugeHandler) UpdateGauge(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	fmt.Print("Received request on the path: %s", r.URL.Path)
 
 	path := strings.TrimPrefix(r.URL.Path, "/update/gauge/")
 	parts := strings.Split(path, "/")
