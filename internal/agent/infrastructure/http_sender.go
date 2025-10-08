@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/agent/domain"
+	"github.com/sirajDeveloper/metrics-alerts-collector/internal/agent/usecase"
 )
 
 type HTTPSender struct {
@@ -19,6 +20,8 @@ func NewHTTPSender(url string) *HTTPSender {
 		client:    &http.Client{},
 	}
 }
+
+var _ usecase.MetricSender = (*HTTPSender)(nil)
 
 func (s *HTTPSender) Send(metric domain.Metric) error {
 	typeStr := string(metric.Type)
