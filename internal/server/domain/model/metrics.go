@@ -6,9 +6,11 @@ import (
 )
 
 const (
-	Counter = "counter"
-	Gauge   = "gauge"
+	Gauge   MetricType = "gauge"
+	Counter MetricType = "counter"
 )
+
+type MetricType string
 
 type Metrics struct {
 	ID    string   `json:"id"`
@@ -27,9 +29,9 @@ func CreateMetric(id, mType string) *Metrics {
 
 func (m *Metrics) UpdateMetric(newValue string) error {
 	switch m.MType {
-	case Gauge:
+	case string(Gauge):
 		return m.updateGauge(newValue)
-	case Counter:
+	case string(Counter):
 		return m.updateCounter(newValue)
 	default:
 		return errors.New("invalid metric type: " + m.MType)

@@ -1,11 +1,11 @@
 package domain
 
-type MetricType string
-
 const (
-	Gauge   MetricType = "Gauge"
-	Counter MetricType = "Counter"
+	Gauge   MetricType = "gauge"
+	Counter MetricType = "counter"
 )
+
+type MetricType string
 
 type Metric struct {
 	Name  string

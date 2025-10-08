@@ -27,4 +27,6 @@ func main() {
 			time.Sleep(reportInterval)
 		}
 	}()
+
+	select {}
 }

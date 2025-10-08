@@ -23,7 +23,7 @@ func (h *CounterHandler) UpdateCounter(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	fmt.Print("Received request on the path: %s", r.URL.Path)
+	fmt.Printf("Received request on the path: %s\n", r.URL.Path)
 
 	path := strings.TrimPrefix(r.URL.Path, "/update/counter/")
 	parts := strings.Split(path, "/")

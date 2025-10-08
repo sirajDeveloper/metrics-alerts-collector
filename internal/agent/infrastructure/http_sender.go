@@ -43,7 +43,23 @@ func (s *HTTPSender) Send(metric domain.Metric) error {
 	}
 	req.Header.Set("Content-Type", "text/plain")
 
+	fmt.Printf("Request to: %v metric: %v\n", req.URL.Path, metric)
 	resp, err := s.client.Do(req)
-	resp.Body.Close()
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Response http code: %v\n", resp.StatusCode)
+
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
 	return nil
 }

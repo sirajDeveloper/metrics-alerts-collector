@@ -23,7 +23,7 @@ func (h *GaugeHandler) UpdateGauge(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	fmt.Print("Received request on the path: %s", r.URL.Path)
+	fmt.Printf("Received request on the path: %s\n", r.URL.Path)
 
 	path := strings.TrimPrefix(r.URL.Path, "/update/gauge/")
 	parts := strings.Split(path, "/")

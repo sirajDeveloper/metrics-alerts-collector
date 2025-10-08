@@ -1,9 +1,9 @@
 package usecase
 
 import (
+	"fmt"
 	"math/rand/v2"
 	"runtime"
-	"sync"
 
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/agent/domain"
 )
@@ -11,7 +11,6 @@ import (
 type Collector struct {
 	sender    MetricSender
 	pollCount int64
-	mu        sync.Mutex
 	metrics   map[string]domain.Metric
 }
 
@@ -23,49 +22,48 @@ func NewCollector(sender MetricSender) *Collector {
 }
 
 func (c *Collector) Collect() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	var mem runtime.MemStats
 	runtime.ReadMemStats(&mem)
 
 	c.pollCount++
 
-	c.metrics["Alloc"] = domain.Metric{"Alloc", Gauge, float64(memStats.Alloc)}
-	c.metrics["BuckHashSys"] = domain.Metric{"BuckHashSys", Gauge, float64(memStats.BuckHashSys)}
-	c.metrics["Frees"] = domain.Metric{"Frees", Gauge, float64(memStats.Frees)}
-	c.metrics["GCCPUFraction"] = domain.Metric{"GCCPUFraction", Gauge, memStats.GCCPUFraction}
-	c.metrics["GCSys"] = domain.Metric{"GCSys", Gauge, float64(memStats.GCSys)}
-	c.metrics["HeapAlloc"] = domain.Metric{"HeapAlloc", Gauge, float64(memStats.HeapAlloc)}
-	c.metrics["HeapIdle"] = domain.Metric{"HeapIdle", Gauge, float64(memStats.HeapIdle)}
-	c.metrics["HeapInuse"] = domain.Metric{"HeapInuse", Gauge, float64(memStats.HeapInuse)}
-	c.metrics["HeapObjects"] = domain.Metric{"HeapObjects", Gauge, float64(memStats.HeapObjects)}
-	c.metrics["HeapReleased"] = domain.Metric{"HeapReleased", Gauge, float64(memStats.HeapReleased)}
-	c.metrics["HeapSys"] = domain.Metric{"HeapSys", Gauge, float64(memStats.HeapSys)}
-	c.metrics["LastGC"] = domain.Metric{"LastGC", Gauge, float64(memStats.LastGC)}
-	c.metrics["Lookups"] = domain.Metric{"Lookups", Gauge, float64(memStats.Lookups)}
-	c.metrics["MCacheInuse"] = domain.Metric{"MCacheInuse", Gauge, float64(memStats.MCacheInuse)}
-	c.metrics["MCacheSys"] = domain.Metric{"MCacheSys", Gauge, float64(memStats.MCacheSys)}
-	c.metrics["MSpanInuse"] = domain.Metric{"MSpanInuse", Gauge, float64(memStats.MSpanInuse)}
-	c.metrics["MSpanSys"] = domain.Metric{"MSpanSys", Gauge, float64(memStats.MSpanSys)}
-	c.metrics["Mallocs"] = domain.Metric{"Mallocs", Gauge, float64(memStats.Mallocs)}
-	c.metrics["NextGC"] = domain.Metric{"NextGC", Gauge, float64(memStats.NextGC)}
-	c.metrics["NumForcedGC"] = domain.Metric{"NumForcedGC", Gauge, float64(memStats.NumForcedGC)}
-	c.metrics["NumGC"] = domain.Metric{"NumGC", Gauge, float64(memStats.NumGC)}
-	c.metrics["OtherSys"] = domain.Metric{"OtherSys", Gauge, float64(memStats.OtherSys)}
-	c.metrics["PauseTotalNs"] = domain.Metric{"PauseTotalNs", Gauge, float64(memStats.PauseTotalNs)}
-	c.metrics["StackInuse"] = domain.Metric{"StackInuse", Gauge, float64(memStats.StackInuse)}
-	c.metrics["StackSys"] = domain.Metric{"StackSys", Gauge, float64(memStats.StackSys)}
-	c.metrics["Sys"] = domain.Metric{"Sys", Gauge, float64(memStats.Sys)}
-	c.metrics["TotalAlloc"] = domain.Metric{"TotalAlloc", Gauge, float64(memStats.TotalAlloc)}
-	c.metrics["RandomValue"] = domain.Metric{"RandomValue", domain.Gauge, rand.Float64() * 100}
+	c.metrics["Alloc"] = domain.Metric{"Alloc", domain.Gauge, float64(mem.Alloc)}
+	c.metrics["BuckHashSys"] = domain.Metric{"BuckHashSys", domain.Gauge, float64(mem.BuckHashSys)}
+	c.metrics["Frees"] = domain.Metric{"Frees", domain.Gauge, float64(mem.Frees)}
+	c.metrics["GCCPUFraction"] = domain.Metric{"GCCPUFraction", domain.Gauge, mem.GCCPUFraction}
+	c.metrics["GCSys"] = domain.Metric{"GCSys", domain.Gauge, float64(mem.GCSys)}
+	c.metrics["HeapAlloc"] = domain.Metric{"HeapAlloc", domain.Gauge, float64(mem.HeapAlloc)}
+	c.metrics["HeapIdle"] = domain.Metric{"HeapIdle", domain.Gauge, float64(mem.HeapIdle)}
+	c.metrics["HeapInuse"] = domain.Metric{"HeapInuse", domain.Gauge, float64(mem.HeapInuse)}
+	c.metrics["HeapObjects"] = domain.Metric{"HeapObjects", domain.Gauge, float64(mem.HeapObjects)}
+	c.metrics["HeapReleased"] = domain.Metric{"HeapReleased", domain.Gauge, float64(mem.HeapReleased)}
+	c.metrics["HeapSys"] = domain.Metric{"HeapSys", domain.Gauge, float64(mem.HeapSys)}
+	c.metrics["LastGC"] = domain.Metric{"LastGC", domain.Gauge, float64(mem.LastGC)}
+	c.metrics["Lookups"] = domain.Metric{"Lookups", domain.Gauge, float64(mem.Lookups)}
+	c.metrics["MCacheInuse"] = domain.Metric{"MCacheInuse", domain.Gauge, float64(mem.MCacheInuse)}
+	c.metrics["MCacheSys"] = domain.Metric{"MCacheSys", domain.Gauge, float64(mem.MCacheSys)}
+	c.metrics["MSpanInuse"] = domain.Metric{"MSpanInuse", domain.Gauge, float64(mem.MSpanInuse)}
+	c.metrics["MSpanSys"] = domain.Metric{"MSpanSys", domain.Gauge, float64(mem.MSpanSys)}
+	c.metrics["Mallocs"] = domain.Metric{"Mallocs", domain.Gauge, float64(mem.Mallocs)}
+	c.metrics["NextGC"] = domain.Metric{"NextGC", domain.Gauge, float64(mem.NextGC)}
+	c.metrics["NumForcedGC"] = domain.Metric{"NumForcedGC", domain.Gauge, float64(mem.NumForcedGC)}
+	c.metrics["NumGC"] = domain.Metric{"NumGC", domain.Gauge, float64(mem.NumGC)}
+	c.metrics["OtherSys"] = domain.Metric{"OtherSys", domain.Gauge, float64(mem.OtherSys)}
+	c.metrics["PauseTotalNs"] = domain.Metric{"PauseTotalNs", domain.Gauge, float64(mem.PauseTotalNs)}
+	c.metrics["StackInuse"] = domain.Metric{"StackInuse", domain.Gauge, float64(mem.StackInuse)}
+	c.metrics["StackSys"] = domain.Metric{"StackSys", domain.Gauge, float64(mem.StackSys)}
+	c.metrics["Sys"] = domain.Metric{"Sys", domain.Gauge, float64(mem.Sys)}
+	c.metrics["TotalAlloc"] = domain.Metric{"TotalAlloc", domain.Gauge, float64(mem.TotalAlloc)}
+
+	c.metrics["PollCount"] = domain.Metric{"PollCount", domain.Counter, c.pollCount}
+	c.metrics["RandomValue"] = domain.Metric{"RandomValue", domain.Gauge, rand.Float64()}
 }
 
 func (c *Collector) Report() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	for _, metric := range c.metrics {
-		_ = c.sender.Send(metric) // Обработка ошибок по необходимости
+		err := c.sender.Send(metric)
+		if err != nil {
+			fmt.Printf("error sending metric: %v", err)
+		}
 	}
 }
