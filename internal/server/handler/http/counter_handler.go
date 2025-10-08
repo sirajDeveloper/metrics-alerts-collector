@@ -1,9 +1,10 @@
 package http
 
 import (
-	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/application"
 	"net/http"
 	"strings"
+
+	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/application"
 )
 
 type CounterHandler struct {
