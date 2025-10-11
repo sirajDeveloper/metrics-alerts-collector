@@ -26,8 +26,7 @@ func NewChiRouter(metricUpdater usecase.MetricUpdater, metricGetter usecase.Metr
 	r.Get("/", handler.GetAllMetrics)
 
 	r.Route("/update", func(r chi.Router) {
-		r.Post("/counter/{name}/{value}", handler.UpdateCounter)
-		r.Post("/gauge/{name}/{value}", handler.UpdateGauge)
+		r.Post("/{type}/{name}/{value}", handler.UpdateMetric)
 	})
 
 	r.Route("/value", func(r chi.Router) {

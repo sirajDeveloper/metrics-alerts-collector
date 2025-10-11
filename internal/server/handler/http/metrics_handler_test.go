@@ -408,3 +408,70 @@ func TestGetAllMetrics_Empty(t *testing.T) {
 		t.Errorf("expected status %d, got %d", http.StatusOK, w.Code)
 	}
 }
+
+func TestUpdateMetric_UnknownType(t *testing.T) {
+	mock := &mockMetricUpdater{}
+	handler := NewMetricsHandler(mock, mock)
+
+	router := chi.NewRouter()
+	router.Post("/update/{type}/{name}/{value}", handler.UpdateMetric)
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/update/unknown/testMetric/100", nil)
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected status %d, got %d", http.StatusBadRequest, w.Code)
+	}
+}
+
+func TestUpdateMetric_Counter_Success(t *testing.T) {
+	mock := &mockMetricUpdater{
+		updateFunc: func(metricType, metricName, metricValue string) error {
+			if metricType != "counter" {
+				t.Errorf("expected metricType 'counter', got '%s'", metricType)
+			}
+			return nil
+		},
+	}
+
+	handler := NewMetricsHandler(mock, mock)
+
+	router := chi.NewRouter()
+	router.Post("/update/{type}/{name}/{value}", handler.UpdateMetric)
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/update/counter/test/100", nil)
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status %d, got %d", http.StatusOK, w.Code)
+	}
+}
+
+func TestUpdateMetric_Gauge_Success(t *testing.T) {
+	mock := &mockMetricUpdater{
+		updateFunc: func(metricType, metricName, metricValue string) error {
+			if metricType != "gauge" {
+				t.Errorf("expected metricType 'gauge', got '%s'", metricType)
+			}
+			return nil
+		},
+	}
+
+	handler := NewMetricsHandler(mock, mock)
+
+	router := chi.NewRouter()
+	router.Post("/update/{type}/{name}/{value}", handler.UpdateMetric)
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/update/gauge/test/123.45", nil)
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status %d, got %d", http.StatusOK, w.Code)
+	}
+}

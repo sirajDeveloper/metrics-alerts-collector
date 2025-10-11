@@ -84,6 +84,34 @@ func (h *MetricsHandler) GetMetricValue(w http.ResponseWriter, r *http.Request) 
 	w.Write([]byte(value))
 }
 
+func (h *MetricsHandler) UpdateMetric(w http.ResponseWriter, r *http.Request) {
+	metricType := chi.URLParam(r, "type")
+	metricName := chi.URLParam(r, "name")
+	metricValue := chi.URLParam(r, "value")
+
+	if metricType != "counter" && metricType != "gauge" {
+		http.Error(w, "Unknown metric type", http.StatusBadRequest)
+		return
+	}
+
+	if metricName == "" {
+		http.Error(w, "Metric name is required", http.StatusBadRequest)
+		return
+	}
+
+	if metricValue == "" {
+		http.Error(w, "Invalid metric value", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.metricUpdater.MetricUpdate(metricType, metricName, metricValue); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
 func (h *MetricsHandler) GetAllMetrics(w http.ResponseWriter, r *http.Request) {
 	displayMetrics := h.metricGetter.GetAllMetricsForDisplay()
 
