@@ -180,7 +180,5 @@ func TestNewMetricService(t *testing.T) {
 	service := NewMetricService(mockRepo)
 
 	assert.NotNil(t, service, "Сервис не должен быть nil")
-
-	_, ok := service.(MetricUpdater)
-	assert.True(t, ok, "Сервис должен реализовывать интерфейс MetricUpdater")
+	assert.Implements(t, (*MetricUpdater)(nil), service, "Сервис должен реализовывать интерфейс MetricUpdater")
 }
