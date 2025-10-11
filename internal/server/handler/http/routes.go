@@ -8,20 +8,18 @@ import (
 )
 
 type Router struct {
-	counterHandler *CounterHandler
-	gaugeHandler   *GaugeHandler
+	metricsHandler *MetricsHandler
 }
 
 func NewRouter(metricUpdater usecase.MetricUpdater) *Router {
 	return &Router{
-		counterHandler: NewCounterHandler(metricUpdater),
-		gaugeHandler:   NewGaugeHandler(metricUpdater),
+		metricsHandler: NewMetricsHandler(metricUpdater),
 	}
 }
 
 func (r *Router) RegisterRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("/update/counter/", r.counterHandler.UpdateCounter)
-	mux.HandleFunc("/update/gauge/", r.gaugeHandler.UpdateGauge)
+	mux.HandleFunc("/update/counter/", r.metricsHandler.UpdateCounter)
+	mux.HandleFunc("/update/gauge/", r.metricsHandler.UpdateGauge)
 	mux.HandleFunc("/update/", r.handleUnknownUpdate)
 }
 
