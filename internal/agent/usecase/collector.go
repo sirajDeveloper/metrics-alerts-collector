@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand/v2"
 	"runtime"
+	"sync"
 
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/agent/domain"
 )
@@ -11,6 +12,7 @@ import (
 type Collector struct {
 	sender    MetricSender
 	pollCount int64
+	mu        sync.Mutex
 	metrics   map[string]domain.Metric
 }
 
@@ -22,6 +24,9 @@ func NewCollector(sender MetricSender) *Collector {
 }
 
 func (c *Collector) Collect() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	var mem runtime.MemStats
 	runtime.ReadMemStats(&mem)
 
@@ -60,10 +65,13 @@ func (c *Collector) Collect() {
 }
 
 func (c *Collector) Report() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	for _, metric := range c.metrics {
 		err := c.sender.Send(metric)
 		if err != nil {
-			fmt.Printf("error sending metric: %v", err)
+			fmt.Printf("error sending metric: %v\n", err)
 		}
 	}
 }

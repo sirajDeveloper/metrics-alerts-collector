@@ -1,39 +1,26 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 
-	handler "github.com/sirajDeveloper/metrics-alerts-collector/internal/server/handler/http"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/infrastructure/datastorage/cache"
+	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/infrastructure/router"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/usecase"
 )
 
 func main() {
 	metricRepo := cache.NewMemStorage()
 	metricService := usecase.NewMetricService(metricRepo)
-	router := handler.NewRouter(metricService)
+	chiRouter := router.NewChiRouter(metricService, metricService)
 
-	mux := http.NewServeMux()
-	router.RegisterRoutes(mux)
-
-	recoveryMux := recoverMiddleware(mux)
+	server := &http.Server{
+		Addr:    ":8080",
+		Handler: chiRouter.Handler(),
+	}
 
 	log.Println("Server starting on http://localhost:8080")
-	if err := http.ListenAndServe(":8080", recoveryMux); err != nil {
+	if err := server.ListenAndServe(); err != nil {
 		log.Fatal("Server failed to start:", err)
 	}
-}
-
-func recoverMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		defer func() {
-			if err := recover(); err != nil {
-				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-				fmt.Println("Panic recovered:", err)
-			}
-		}()
-		next.ServeHTTP(w, r)
-	})
 }

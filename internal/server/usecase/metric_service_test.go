@@ -25,6 +25,14 @@ func (m *MockRepository) Save(metrics *model.Metrics) {
 	m.Called(metrics)
 }
 
+func (m *MockRepository) GetAll() []*model.Metrics {
+	args := m.Called()
+	if args.Get(0) == nil {
+		return nil
+	}
+	return args.Get(0).([]*model.Metrics)
+}
+
 func TestMetricService_MetricUpdate(t *testing.T) {
 	tests := []struct {
 		name          string

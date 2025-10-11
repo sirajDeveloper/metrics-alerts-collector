@@ -5,19 +5,21 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/go-resty/resty/v2"
+
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/agent/domain"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/agent/usecase"
 )
 
 type HTTPSender struct {
 	serverURL string
-	client    *http.Client
+	client    *resty.Client
 }
 
 func NewHTTPSender(url string) *HTTPSender {
 	return &HTTPSender{
 		serverURL: url,
-		client:    &http.Client{},
+		client:    resty.New(),
 	}
 }
 
@@ -37,29 +39,43 @@ func (s *HTTPSender) Send(metric domain.Metric) error {
 	}
 
 	url := fmt.Sprintf("%s/update/%s/%s/%s", s.serverURL, typeStr, metric.Name, valueStr)
-	req, err := http.NewRequest(http.MethodPost, url, nil)
+	fmt.Printf("Request url: %v\n", url)
+
+	resp, err := s.client.R().
+		SetHeader("Content-Type", "text/plain").
+		Post(url)
 	if err != nil {
 		return err
 	}
-	req.Header.Set("Content-Type", "text/plain")
+	fmt.Printf("Response http code: %v\n", resp.StatusCode())
 
-	fmt.Printf("Request to: %v metric: %v\n", req.URL.Path, metric)
-	resp, err := s.client.Do(req)
-	if err != nil {
-		return err
+	if resp.StatusCode() != http.StatusOK {
+		return fmt.Errorf("unexpected status code: %d", resp.StatusCode())
 	}
 
-	fmt.Printf("Response http code: %v\n", resp.StatusCode)
-
-	defer func() {
-		if closeErr := resp.Body.Close(); closeErr != nil && err == nil {
-			err = closeErr
+	/*	req, err := http.NewRequest(http.MethodPost, url, nil)
+		if err != nil {
+			return err
 		}
-	}()
+		req.Header.Set("Content-Type", "text/plain")
 
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-	}
+		fmt.Printf("Request to: %v metric: %v\n", req.URL.Path, metric)
+		resp, err := s.client.Do(req)
+		if err != nil {
+			return err
+		}
 
+		fmt.Printf("Response http code: %v\n", resp.StatusCode)
+
+		defer func() {
+			if closeErr := resp.Body.Close(); closeErr != nil && err == nil {
+				err = closeErr
+			}
+		}()
+
+		if resp.StatusCode != http.StatusOK {
+			return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+		}
+	*/
 	return nil
 }

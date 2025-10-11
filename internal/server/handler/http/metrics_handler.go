@@ -1,43 +1,36 @@
 package http
 
 import (
-	"fmt"
+	"embed"
+	"html/template"
 	"net/http"
-	"strings"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/usecase"
+	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/usecase/dto"
 )
+
+//go:embed templates/*.html
+var templatesFS embed.FS
 
 type MetricsHandler struct {
 	metricUpdater usecase.MetricUpdater
+	metricGetter  usecase.MetricGetter
 }
 
-func NewMetricsHandler(metricUpdater usecase.MetricUpdater) *MetricsHandler {
+func NewMetricsHandler(metricUpdater usecase.MetricUpdater, metricGetter usecase.MetricGetter) *MetricsHandler {
 	return &MetricsHandler{
 		metricUpdater: metricUpdater,
+		metricGetter:  metricGetter,
 	}
 }
 
 func (h *MetricsHandler) UpdateCounter(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	fmt.Printf("Received request on the path: %s\n", r.URL.Path)
-
-	path := strings.TrimPrefix(r.URL.Path, "/update/counter/")
-	parts := strings.Split(path, "/")
-
-	if len(parts) != 2 {
-		http.Error(w, "Invalid path format", http.StatusNotFound)
-		return
-	}
-
-	metricName := parts[0]
-	metricValue := parts[1]
+	metricName := chi.URLParam(r, "name")
+	metricValue := chi.URLParam(r, "value")
 
 	if metricName == "" {
-		http.Error(w, "Metric name is required", http.StatusNotFound)
+		http.Error(w, "Metric name is required", http.StatusBadRequest)
 		return
 	}
 
@@ -55,25 +48,11 @@ func (h *MetricsHandler) UpdateCounter(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *MetricsHandler) UpdateGauge(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	fmt.Printf("Received request on the path: %s\n", r.URL.Path)
-
-	path := strings.TrimPrefix(r.URL.Path, "/update/gauge/")
-	parts := strings.Split(path, "/")
-
-	if len(parts) != 2 {
-		http.Error(w, "Invalid path format", http.StatusNotFound)
-		return
-	}
-
-	metricName := parts[0]
-	metricValue := parts[1]
+	metricName := chi.URLParam(r, "name")
+	metricValue := chi.URLParam(r, "value")
 
 	if metricName == "" {
-		http.Error(w, "Metric name is required", http.StatusNotFound)
+		http.Error(w, "Metric name is required", http.StatusBadRequest)
 		return
 	}
 
@@ -88,4 +67,42 @@ func (h *MetricsHandler) UpdateGauge(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
+}
+
+func (h *MetricsHandler) GetMetricValue(w http.ResponseWriter, r *http.Request) {
+	metricType := chi.URLParam(r, "type")
+	metricName := chi.URLParam(r, "name")
+
+	value, err := h.metricGetter.GetMetricValue(metricType, metricName)
+	if err != nil {
+		http.Error(w, "Metric not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/plain")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(value))
+}
+
+func (h *MetricsHandler) GetAllMetrics(w http.ResponseWriter, r *http.Request) {
+	displayMetrics := h.metricGetter.GetAllMetricsForDisplay()
+
+	tmpl, err := template.ParseFS(templatesFS, "templates/metrics.html")
+	if err != nil {
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	data := struct {
+		Metrics []dto.MetricDTO
+	}{
+		Metrics: displayMetrics,
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+
+	if err := tmpl.Execute(w, data); err != nil {
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+	}
 }

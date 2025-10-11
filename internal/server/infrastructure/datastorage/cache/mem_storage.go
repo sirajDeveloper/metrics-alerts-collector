@@ -29,3 +29,12 @@ func (m *MemStorage) GetMetric(mType, name string) *model.Metrics {
 func (m *MemStorage) Save(metrics *model.Metrics) {
 	m.cache[*metrics] = struct{}{}
 }
+
+func (m *MemStorage) GetAll() []*model.Metrics {
+	result := make([]*model.Metrics, 0, len(m.cache))
+	for metric := range m.cache {
+		metricCopy := metric
+		result = append(result, &metricCopy)
+	}
+	return result
+}
