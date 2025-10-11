@@ -1,7 +1,8 @@
 package usecase
 
 import (
-	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/domain"
+	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/domain/model"
+	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/domain/repository"
 )
 
 type MetricUpdater interface {
@@ -9,10 +10,10 @@ type MetricUpdater interface {
 }
 
 type MetricService struct {
-	repo domain.MetricRepository
+	repo repository.MetricRepository
 }
 
-func NewMetricService(repo domain.MetricRepository) MetricUpdater {
+func NewMetricService(repo repository.MetricRepository) MetricUpdater {
 	return &MetricService{repo: repo}
 }
 
@@ -21,7 +22,7 @@ var _ MetricUpdater = (*MetricService)(nil)
 func (s *MetricService) MetricUpdate(metricType string, metricName string, metricValue string) error {
 	metric := s.repo.GetMetric(metricType, metricName)
 	if metric == nil {
-		metric = domain.CreateMetric(metricName, metricType)
+		metric = model.CreateMetric(metricName, metricType)
 	}
 
 	if err := metric.UpdateMetric(metricValue); err != nil {

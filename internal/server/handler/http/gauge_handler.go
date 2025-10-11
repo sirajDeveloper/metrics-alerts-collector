@@ -1,16 +1,17 @@
 package http
 
 import (
-	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/application"
 	"net/http"
 	"strings"
+
+	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/usecase"
 )
 
 type GaugeHandler struct {
-	metricUpdater application.MetricUpdater
+	metricUpdater usecase.MetricUpdater
 }
 
-func NewGaugeHandler(metricUpdater application.MetricUpdater) *GaugeHandler {
+func NewGaugeHandler(metricUpdater usecase.MetricUpdater) *GaugeHandler {
 	return &GaugeHandler{
 		metricUpdater: metricUpdater,
 	}

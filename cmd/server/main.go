@@ -5,15 +5,15 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/handler/http"
+	httpHandler "github.com/sirajDeveloper/metrics-alerts-collector/internal/server/handler/http"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/infrastructure/datastorage/cache"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/usecase"
 )
 
 func main() {
-	metricRepo := repository.NewMemStorage()
-	metricService := application.NewMetricService(metricRepo)
-	router := handler.NewRouter(metricService)
+	metricRepo := cache.NewMemStorage()
+	metricService := usecase.NewMetricService(metricRepo)
+	router := httpHandler.NewRouter(metricService)
 
 	mux := http.NewServeMux()
 	router.RegisterRoutes(mux)

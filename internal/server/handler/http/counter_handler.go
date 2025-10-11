@@ -4,14 +4,14 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/application"
+	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/usecase"
 )
 
 type CounterHandler struct {
-	metricUpdater application.MetricUpdater
+	metricUpdater usecase.MetricUpdater
 }
 
-func NewCounterHandler(metricUpdater application.MetricUpdater) *CounterHandler {
+func NewCounterHandler(metricUpdater usecase.MetricUpdater) *CounterHandler {
 	return &CounterHandler{
 		metricUpdater: metricUpdater,
 	}
