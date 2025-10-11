@@ -1,0 +1,45 @@
+package router
+
+import (
+	"net/http"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+
+	httpHandler "github.com/sirajDeveloper/metrics-alerts-collector/internal/server/handler/http"
+	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/usecase"
+)
+
+type ChiRouter struct {
+	router         chi.Router
+	metricsHandler *httpHandler.MetricsHandler
+}
+
+func NewChiRouter(metricUpdater usecase.MetricUpdater, metricGetter usecase.MetricGetter) *ChiRouter {
+	r := chi.NewRouter()
+
+	r.Use(middleware.Recoverer)
+	r.Use(middleware.Logger)
+
+	handler := httpHandler.NewMetricsHandler(metricUpdater, metricGetter)
+
+	r.Get("/", handler.GetAllMetrics)
+
+	r.Route("/update", func(r chi.Router) {
+		r.Post("/counter/{name}/{value}", handler.UpdateCounter)
+		r.Post("/gauge/{name}/{value}", handler.UpdateGauge)
+	})
+
+	r.Route("/value", func(r chi.Router) {
+		r.Get("/{type}/{name}", handler.GetMetricValue)
+	})
+
+	return &ChiRouter{
+		router:         r,
+		metricsHandler: handler,
+	}
+}
+
+func (cr *ChiRouter) Handler() http.Handler {
+	return cr.router
+}

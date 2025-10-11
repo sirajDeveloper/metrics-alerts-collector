@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Metrics</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            max-width: 800px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #4CAF50;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        .empty {
+            color: #999;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <h1>Metrics</h1>
+    {{if .Metrics}}
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Value</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Metrics}}
+            <tr>
+                <td>{{.ID}}</td>
+                <td>{{.MType}}</td>
+                <td>{{.ValueStr}}</td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+    {{else}}
+    <p class="empty">No metrics available</p>
+    {{end}}
+</body>
+</html>
+
