@@ -1,9 +1,10 @@
 package cache
 
 import (
+	"sync"
+
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/domain/model"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/domain/repository"
-	"sync"
 )
 
 type metricKey struct {
@@ -28,8 +29,8 @@ func (m *MemStorage) GetMetric(mType, name string) *model.Metrics {
 	m.RLock()
 	defer m.RUnlock()
 	key := metricKey{ID: name, MType: mType}
-	copyM := *m.cache[key]
-	return &copyM
+	metric := *m.cache[key]
+	return &metric
 }
 
 func (m *MemStorage) Save(metrics *model.Metrics) {
@@ -44,6 +45,9 @@ func (m *MemStorage) GetAll() []*model.Metrics {
 	defer m.RUnlock()
 	result := make([]*model.Metrics, 0, len(m.cache))
 	for _, metric := range m.cache {
+		if metric == nil {
+			continue
+		}
 		copyM := *metric
 		result = append(result, &copyM)
 	}
