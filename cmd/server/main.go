@@ -23,7 +23,7 @@ func main() {
 		Handler: chiRouter.Handler(),
 	}
 
-	log.Println("Server starting on http://localhost:8080")
+	log.Println("Server starting on http://localhost:" + port)
 	if err := server.ListenAndServe(); err != nil {
 		log.Fatal("Server failed to start:", err)
 	}
