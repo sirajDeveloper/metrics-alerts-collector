@@ -5,36 +5,37 @@ import (
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/domain/repository"
 )
 
-type MemStorage struct {
-	cache map[model.Metrics]struct{}
+type metricKey struct {
+	ID    string
+	MType string
 }
 
-func NewMemStorage() *MemStorage {
-	return &MemStorage{
-		cache: make(map[model.Metrics]struct{}),
-	}
+type MemStorage struct {
+	cache map[metricKey]*model.Metrics
 }
 
 var _ repository.MetricRepository = (*MemStorage)(nil)
 
-func (m *MemStorage) GetMetric(mType, name string) *model.Metrics {
-	for metrics := range m.cache {
-		if metrics.MType == mType && metrics.ID == name {
-			return &metrics
-		}
+func NewMemStorage() *MemStorage {
+	return &MemStorage{
+		cache: make(map[metricKey]*model.Metrics),
 	}
-	return nil
+}
+
+func (m *MemStorage) GetMetric(mType, name string) *model.Metrics {
+	key := metricKey{ID: name, MType: mType}
+	return m.cache[key]
 }
 
 func (m *MemStorage) Save(metrics *model.Metrics) {
-	m.cache[*metrics] = struct{}{}
+	key := metricKey{ID: metrics.ID, MType: metrics.MType}
+	m.cache[key] = metrics
 }
 
 func (m *MemStorage) GetAll() []*model.Metrics {
 	result := make([]*model.Metrics, 0, len(m.cache))
-	for metric := range m.cache {
-		metricCopy := metric
-		result = append(result, &metricCopy)
+	for _, metric := range m.cache {
+		result = append(result, metric)
 	}
 	return result
 }
