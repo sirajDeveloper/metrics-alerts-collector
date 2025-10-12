@@ -8,11 +8,9 @@ import (
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/agent/usecase"
 )
 
-const serverHost = "http://localhost"
-
 func main() {
 	ParseFlags()
-	serverURL := serverHost + ":" + Port
+	serverURL := "http://localhost" + Port
 	sender := infrastructure.NewHTTPSender(serverURL)
 	fmt.Printf("HTTPSender init with serverURL: %v", serverURL)
 	collector := usecase.NewCollector(sender)
