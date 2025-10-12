@@ -32,36 +32,50 @@ func (c *Collector) Collect() {
 
 	c.pollCount++
 
-	c.metrics["Alloc"] = domain.Metric{Name: "Alloc", Type: domain.Gauge, Value: float64(mem.Alloc)}
-	c.metrics["BuckHashSys"] = domain.Metric{Name: "BuckHashSys", Type: domain.Gauge, Value: float64(mem.BuckHashSys)}
-	c.metrics["Frees"] = domain.Metric{Name: "Frees", Type: domain.Gauge, Value: float64(mem.Frees)}
-	c.metrics["GCCPUFraction"] = domain.Metric{Name: "GCCPUFraction", Type: domain.Gauge, Value: mem.GCCPUFraction}
-	c.metrics["GCSys"] = domain.Metric{Name: "GCSys", Type: domain.Gauge, Value: float64(mem.GCSys)}
-	c.metrics["HeapAlloc"] = domain.Metric{Name: "HeapAlloc", Type: domain.Gauge, Value: float64(mem.HeapAlloc)}
-	c.metrics["HeapIdle"] = domain.Metric{Name: "HeapIdle", Type: domain.Gauge, Value: float64(mem.HeapIdle)}
-	c.metrics["HeapInuse"] = domain.Metric{Name: "HeapInuse", Type: domain.Gauge, Value: float64(mem.HeapInuse)}
-	c.metrics["HeapObjects"] = domain.Metric{Name: "HeapObjects", Type: domain.Gauge, Value: float64(mem.HeapObjects)}
-	c.metrics["HeapReleased"] = domain.Metric{Name: "HeapReleased", Type: domain.Gauge, Value: float64(mem.HeapReleased)}
-	c.metrics["HeapSys"] = domain.Metric{Name: "HeapSys", Type: domain.Gauge, Value: float64(mem.HeapSys)}
-	c.metrics["LastGC"] = domain.Metric{Name: "LastGC", Type: domain.Gauge, Value: float64(mem.LastGC)}
-	c.metrics["Lookups"] = domain.Metric{Name: "Lookups", Type: domain.Gauge, Value: float64(mem.Lookups)}
-	c.metrics["MCacheInuse"] = domain.Metric{Name: "MCacheInuse", Type: domain.Gauge, Value: float64(mem.MCacheInuse)}
-	c.metrics["MCacheSys"] = domain.Metric{Name: "MCacheSys", Type: domain.Gauge, Value: float64(mem.MCacheSys)}
-	c.metrics["MSpanInuse"] = domain.Metric{Name: "MSpanInuse", Type: domain.Gauge, Value: float64(mem.MSpanInuse)}
-	c.metrics["MSpanSys"] = domain.Metric{Name: "MSpanSys", Type: domain.Gauge, Value: float64(mem.MSpanSys)}
-	c.metrics["Mallocs"] = domain.Metric{Name: "Mallocs", Type: domain.Gauge, Value: float64(mem.Mallocs)}
-	c.metrics["NextGC"] = domain.Metric{Name: "NextGC", Type: domain.Gauge, Value: float64(mem.NextGC)}
-	c.metrics["NumForcedGC"] = domain.Metric{Name: "NumForcedGC", Type: domain.Gauge, Value: float64(mem.NumForcedGC)}
-	c.metrics["NumGC"] = domain.Metric{Name: "NumGC", Type: domain.Gauge, Value: float64(mem.NumGC)}
-	c.metrics["OtherSys"] = domain.Metric{Name: "OtherSys", Type: domain.Gauge, Value: float64(mem.OtherSys)}
-	c.metrics["PauseTotalNs"] = domain.Metric{Name: "PauseTotalNs", Type: domain.Gauge, Value: float64(mem.PauseTotalNs)}
-	c.metrics["StackInuse"] = domain.Metric{Name: "StackInuse", Type: domain.Gauge, Value: float64(mem.StackInuse)}
-	c.metrics["StackSys"] = domain.Metric{Name: "StackSys", Type: domain.Gauge, Value: float64(mem.StackSys)}
-	c.metrics["Sys"] = domain.Metric{Name: "Sys", Type: domain.Gauge, Value: float64(mem.Sys)}
-	c.metrics["TotalAlloc"] = domain.Metric{Name: "TotalAlloc", Type: domain.Gauge, Value: float64(mem.TotalAlloc)}
+	gaugeMetrics := map[string]float64{
+		"Alloc":         float64(mem.Alloc),
+		"BuckHashSys":   float64(mem.BuckHashSys),
+		"Frees":         float64(mem.Frees),
+		"GCCPUFraction": mem.GCCPUFraction,
+		"GCSys":         float64(mem.GCSys),
+		"HeapAlloc":     float64(mem.HeapAlloc),
+		"HeapIdle":      float64(mem.HeapIdle),
+		"HeapInuse":     float64(mem.HeapInuse),
+		"HeapObjects":   float64(mem.HeapObjects),
+		"HeapReleased":  float64(mem.HeapReleased),
+		"HeapSys":       float64(mem.HeapSys),
+		"LastGC":        float64(mem.LastGC),
+		"Lookups":       float64(mem.Lookups),
+		"MCacheInuse":   float64(mem.MCacheInuse),
+		"MCacheSys":     float64(mem.MCacheSys),
+		"MSpanInuse":    float64(mem.MSpanInuse),
+		"MSpanSys":      float64(mem.MSpanSys),
+		"Mallocs":       float64(mem.Mallocs),
+		"NextGC":        float64(mem.NextGC),
+		"NumForcedGC":   float64(mem.NumForcedGC),
+		"NumGC":         float64(mem.NumGC),
+		"OtherSys":      float64(mem.OtherSys),
+		"PauseTotalNs":  float64(mem.PauseTotalNs),
+		"StackInuse":    float64(mem.StackInuse),
+		"StackSys":      float64(mem.StackSys),
+		"Sys":           float64(mem.Sys),
+		"TotalAlloc":    float64(mem.TotalAlloc),
+		"RandomValue":   rand.Float64(),
+	}
 
-	c.metrics["PollCount"] = domain.Metric{Name: "PollCount", Type: domain.Counter, Value: c.pollCount}
-	c.metrics["RandomValue"] = domain.Metric{Name: "RandomValue", Type: domain.Gauge, Value: rand.Float64()}
+	for name, value := range gaugeMetrics {
+		c.metrics[name] = domain.Metric{
+			Name:  name,
+			Type:  domain.Gauge,
+			Value: value,
+		}
+	}
+
+	c.metrics["PollCount"] = domain.Metric{
+		Name:  "PollCount",
+		Type:  domain.Counter,
+		Value: c.pollCount,
+	}
 }
 
 func (c *Collector) Report() {

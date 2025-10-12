@@ -3,6 +3,7 @@ package cache
 import (
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/domain/model"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/domain/repository"
+	"sync"
 )
 
 type metricKey struct {
@@ -11,6 +12,7 @@ type metricKey struct {
 }
 
 type MemStorage struct {
+	sync.RWMutex
 	cache map[metricKey]*model.Metrics
 }
 
@@ -23,19 +25,27 @@ func NewMemStorage() *MemStorage {
 }
 
 func (m *MemStorage) GetMetric(mType, name string) *model.Metrics {
+	m.RLock()
+	defer m.RUnlock()
 	key := metricKey{ID: name, MType: mType}
-	return m.cache[key]
+	copyM := *m.cache[key]
+	return &copyM
 }
 
 func (m *MemStorage) Save(metrics *model.Metrics) {
+	m.Lock()
+	defer m.Unlock()
 	key := metricKey{ID: metrics.ID, MType: metrics.MType}
 	m.cache[key] = metrics
 }
 
 func (m *MemStorage) GetAll() []*model.Metrics {
+	m.RLock()
+	defer m.RUnlock()
 	result := make([]*model.Metrics, 0, len(m.cache))
 	for _, metric := range m.cache {
-		result = append(result, metric)
+		copyM := *metric
+		result = append(result, &copyM)
 	}
 	return result
 }
