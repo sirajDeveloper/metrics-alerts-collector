@@ -5,14 +5,14 @@ import (
 )
 
 var (
-	Port           string
-	ReportInterval int
-	PollInterval   int
+	address        string
+	reportInterval int
+	pollInterval   int
 )
 
 func ParseFlags() {
-	flag.StringVar(&Port, "a", ":8080", "address and port to run server")
-	flag.IntVar(&PollInterval, "p", 2, "poll interval in seconds")
-	flag.IntVar(&ReportInterval, "r", 10, "report interval in seconds")
+	flag.StringVar(&address, "a", "localhost:8080", "address and port to run server")
+	flag.IntVar(&pollInterval, "p", 2, "poll interval in seconds")
+	flag.IntVar(&reportInterval, "r", 10, "report interval in seconds")
 	flag.Parse()
 }

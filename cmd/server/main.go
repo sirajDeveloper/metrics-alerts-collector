@@ -19,11 +19,11 @@ func main() {
 	chiRouter := router.NewChiRouter(metricService, metricService)
 
 	server := &http.Server{
-		Addr:    port,
+		Addr:    address,
 		Handler: chiRouter.Handler(),
 	}
 
-	log.Println("Server starting on " + port)
+	log.Println("Server starting on http://" + address)
 	if err := server.ListenAndServe(); err != nil {
 		log.Fatal("Server failed to start:", err)
 	}

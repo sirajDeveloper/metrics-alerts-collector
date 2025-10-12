@@ -10,22 +10,22 @@ import (
 
 func main() {
 	ParseFlags()
-	serverURL := "http://localhost" + Port
+	serverURL := "http://" + address
 	sender := infrastructure.NewHTTPSender(serverURL)
-	fmt.Printf("HTTPSender init with serverURL: %v", serverURL)
+	fmt.Printf("HTTPSender init with serverURL: %v\n", serverURL)
 	collector := usecase.NewCollector(sender)
 
 	go func() {
 		for {
 			collector.Collect()
-			time.Sleep(time.Duration(PollInterval) * time.Second)
+			time.Sleep(time.Duration(pollInterval) * time.Second)
 		}
 	}()
 
 	go func() {
 		for {
 			collector.Report()
-			time.Sleep(time.Duration(ReportInterval) * time.Second)
+			time.Sleep(time.Duration(reportInterval) * time.Second)
 		}
 	}()
 
