@@ -29,8 +29,12 @@ func (m *MemStorage) GetMetric(mType, name string) *model.Metrics {
 	m.RLock()
 	defer m.RUnlock()
 	key := metricKey{ID: name, MType: mType}
-	metric := *m.cache[key]
-	return &metric
+	metric := m.cache[key]
+	if metric == nil {
+		return nil
+	}
+	copyM := *metric
+	return &copyM
 }
 
 func (m *MemStorage) Save(metrics *model.Metrics) {
