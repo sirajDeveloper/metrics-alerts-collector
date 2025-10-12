@@ -9,13 +9,17 @@ import (
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/usecase"
 )
 
+type Environments struct {
+}
+
 func main() {
+	parseFlags()
 	metricRepo := cache.NewMemStorage()
 	metricService := usecase.NewMetricService(metricRepo)
 	chiRouter := router.NewChiRouter(metricService, metricService)
 
 	server := &http.Server{
-		Addr:    ":8080",
+		Addr:    port,
 		Handler: chiRouter.Handler(),
 	}
 
