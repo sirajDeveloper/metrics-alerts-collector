@@ -14,7 +14,7 @@ import (
 )
 
 func main() {
-	ParseFlags()
+	ParseConfig()
 	serverURL := "http://" + address
 	sender := infrastructure.NewHTTPSender(serverURL)
 	fmt.Printf("HTTPSender init with serverURL: %v\n", serverURL)

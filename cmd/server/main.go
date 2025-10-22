@@ -15,11 +15,9 @@ import (
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/usecase"
 )
 
-type Environments struct {
-}
-
 func main() {
-	parseFlags()
+	parseConfig()
+
 	metricRepo := cache.NewMemStorage()
 	metricService := usecase.NewMetricService(metricRepo)
 	chiRouter := router.NewChiRouter(metricService, metricService)
