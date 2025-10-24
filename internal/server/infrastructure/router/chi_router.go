@@ -1,8 +1,9 @@
 package router
 
 import (
-	customMidWare "github.com/sirajDeveloper/metrics-alerts-collector/internal/server/handler/http/middleware"
 	"net/http"
+
+	customMidWare "github.com/sirajDeveloper/metrics-alerts-collector/internal/server/handler/http/middleware"
 
 	"github.com/go-chi/chi/v5"
 	chiMidware "github.com/go-chi/chi/v5/middleware"
