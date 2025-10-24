@@ -2,8 +2,11 @@ package main
 
 import (
 	"flag"
+
 	"github.com/caarlos0/env/v6"
-	"log"
+	"go.uber.org/zap"
+
+	"github.com/sirajDeveloper/metrics-alerts-collector/internal/logger"
 )
 
 var address string
@@ -14,7 +17,7 @@ func parseConfig() {
 	var cfg Config
 	err := env.Parse(&cfg)
 	if err != nil {
-		log.Fatal(err)
+		logger.Log.Fatal("Failed to parse config", zap.String("error", err.Error()))
 	}
 	if cfg.Address != "" {
 		address = cfg.Address

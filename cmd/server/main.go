@@ -3,13 +3,15 @@ package main
 import (
 	"context"
 	"errors"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	"go.uber.org/zap"
+
+	"github.com/sirajDeveloper/metrics-alerts-collector/internal/logger"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/infrastructure/datastorage/cache"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/infrastructure/router"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/usecase"
@@ -17,6 +19,14 @@ import (
 
 func main() {
 	parseConfig()
+
+	logger.InitLogger(false)
+	defer func() {
+		err := logger.Sync()
+		if err != nil {
+			logger.Log.Info("Failed to sync logs")
+		}
+	}()
 
 	metricRepo := cache.NewMemStorage()
 	metricService := usecase.NewMetricService(metricRepo)
@@ -28,9 +38,9 @@ func main() {
 	}
 
 	go func() {
-		log.Println("Server starting on http://" + address)
+		logger.Log.Info("Server starting on http://" + address)
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Fatal("Server failed to start:", err)
+			logger.Log.Fatal("Server failed to start", zap.String("error", err.Error()))
 		}
 	}()
 
@@ -39,13 +49,13 @@ func main() {
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
 	<-sigChan
-	log.Println("Shutting down gracefully...")
+	logger.Log.Info("Shutting down gracefully...")
 
 	ctxt, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	if err := server.Shutdown(ctxt); err != nil {
-		log.Fatal()
+		logger.Log.Fatal("Server shutdown failed", zap.String("error", err.Error()))
 	}
 	time.Sleep(100 * time.Millisecond)
-	log.Println("Server stopped")
+	logger.Log.Info("Server stopped")
 }

@@ -1,10 +1,11 @@
 package router
 
 import (
+	customMidWare "github.com/sirajDeveloper/metrics-alerts-collector/internal/server/handler/http/middleware"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
+	chiMidware "github.com/go-chi/chi/v5/middleware"
 
 	httpHandler "github.com/sirajDeveloper/metrics-alerts-collector/internal/server/handler/http"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/usecase"
@@ -18,8 +19,8 @@ type ChiRouter struct {
 func NewChiRouter(metricUpdater usecase.MetricUpdater, metricGetter usecase.MetricGetter) *ChiRouter {
 	r := chi.NewRouter()
 
-	r.Use(middleware.Recoverer)
-	r.Use(middleware.Logger)
+	r.Use(chiMidware.Recoverer)
+	r.Use(customMidWare.LoggingMiddleware)
 
 	handler := httpHandler.NewMetricsHandler(metricUpdater, metricGetter)
 
