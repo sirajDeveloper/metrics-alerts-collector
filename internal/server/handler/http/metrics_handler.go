@@ -86,7 +86,7 @@ func (h *MetricsHandler) UpdateGauge(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func (h *MetricsHandler) GetMetricValueUrlParam(w http.ResponseWriter, r *http.Request) {
+func (h *MetricsHandler) GetMetricValueURLParam(w http.ResponseWriter, r *http.Request) {
 	metricType := chi.URLParam(r, "type")
 	metricName := chi.URLParam(r, "name")
 
@@ -109,7 +109,7 @@ func (h *MetricsHandler) GetMetricValueUrlParam(w http.ResponseWriter, r *http.R
 	}
 }
 
-func (h *MetricsHandler) UpdateMetricUrlParam(w http.ResponseWriter, r *http.Request) {
+func (h *MetricsHandler) UpdateMetricURLParam(w http.ResponseWriter, r *http.Request) {
 	metricType := chi.URLParam(r, "type")
 	metricName := chi.URLParam(r, "name")
 	metricValue := chi.URLParam(r, "value")
