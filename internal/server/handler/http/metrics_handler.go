@@ -3,6 +3,7 @@ package http
 import (
 	"embed"
 	"encoding/json"
+	"github.com/go-chi/chi/v5"
 	"html/template"
 	"net/http"
 
@@ -77,6 +78,60 @@ func (h *MetricsHandler) UpdateGauge(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := h.metricUpdater.MetricUpdate(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func (h *MetricsHandler) GetMetricValueUrlParam(w http.ResponseWriter, r *http.Request) {
+	metricType := chi.URLParam(r, "type")
+	metricName := chi.URLParam(r, "name")
+
+	req := dto.MetricValueRequest{
+		Name: metricName, Type: metricType,
+	}
+
+	value, err := h.metricGetter.GetMetricValue(&req)
+	if err != nil {
+		http.Error(w, "Metric not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/plain")
+	w.WriteHeader(http.StatusOK)
+	_, err = w.Write([]byte(value.Value))
+	if err != nil {
+		http.Error(w, "Error while response writing", http.StatusInternalServerError)
+		return
+	}
+}
+
+func (h *MetricsHandler) UpdateMetricUrlParam(w http.ResponseWriter, r *http.Request) {
+	metricType := chi.URLParam(r, "type")
+	metricName := chi.URLParam(r, "name")
+	metricValue := chi.URLParam(r, "value")
+
+	if metricType != "counter" && metricType != "gauge" {
+		http.Error(w, "Unknown metric type", http.StatusBadRequest)
+		return
+	}
+
+	if metricName == "" {
+		http.Error(w, "Metric name is required", http.StatusBadRequest)
+		return
+	}
+
+	if metricValue == "" {
+		http.Error(w, "Invalid metric value", http.StatusBadRequest)
+		return
+	}
+
+	req := dto.MetricUpdateRequest{
+		Name: metricName, Type: metricType, Value: metricValue,
+	}
 	if err := h.metricUpdater.MetricUpdate(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return

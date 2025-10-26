@@ -49,7 +49,7 @@ func (s *MetricService) GetMetricValue(req *dto.MetricValueRequest) (*dto.Metric
 	resp := dto.MetricValueResponse{
 		Name:  "",
 		Type:  "",
-		Value: nil,
+		Value: "",
 	}
 	if metric == nil {
 		return &resp, fmt.Errorf("metric not found")
