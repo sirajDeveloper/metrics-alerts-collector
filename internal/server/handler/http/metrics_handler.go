@@ -3,9 +3,12 @@ package http
 import (
 	"embed"
 	"encoding/json"
-	"github.com/go-chi/chi/v5"
+	"strconv"
+
 	"html/template"
 	"net/http"
+
+	"github.com/go-chi/chi/v5"
 
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/logger"
 	"go.uber.org/zap"
@@ -45,7 +48,7 @@ func (h *MetricsHandler) UpdateCounter(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.Value == "" {
+	if req.Value == nil {
 		http.Error(w, "Invalid metric value", http.StatusBadRequest)
 		return
 	}
@@ -73,7 +76,7 @@ func (h *MetricsHandler) UpdateGauge(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.Value == "" {
+	if req.Value == nil {
 		http.Error(w, "Invalid metric value", http.StatusBadRequest)
 		return
 	}
@@ -100,9 +103,22 @@ func (h *MetricsHandler) GetMetricValueURLParam(w http.ResponseWriter, r *http.R
 		return
 	}
 
+	var valueStr string
+	switch v := value.Value.(type) {
+	case float64:
+		valueStr = strconv.FormatFloat(v, 'f', -1, 64)
+	case int64:
+		valueStr = strconv.FormatInt(v, 10)
+	case int:
+		valueStr = strconv.Itoa(v)
+	default:
+		http.Error(w, "Invalid value type", http.StatusInternalServerError)
+		return
+	}
+
 	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusOK)
-	_, err = w.Write([]byte(value.Value))
+	_, err = w.Write([]byte(valueStr))
 	if err != nil {
 		http.Error(w, "Error while response writing", http.StatusInternalServerError)
 		return
@@ -154,7 +170,7 @@ func (h *MetricsHandler) GetMetricValue(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	w.Header().Set("Content-Type", "text/plain")
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(&resp); err != nil {
 		http.Error(w, "failed to encode response", http.StatusInternalServerError)
@@ -179,8 +195,8 @@ func (h *MetricsHandler) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.Value == "" {
-		http.Error(w, "Invalid metric value", http.StatusBadRequest)
+	if req.Value == nil {
+		http.Error(w, "Metric value is required", http.StatusBadRequest)
 		return
 	}
 

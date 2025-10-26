@@ -1,7 +1,7 @@
 package dto
 
 type MetricValueResponse struct {
-	Name  string `json:"name"`
+	Name  string `json:"id"`
 	Type  string `json:"type"`
-	Value string `json:"value"`
+	Value any    `json:"value"`
 }

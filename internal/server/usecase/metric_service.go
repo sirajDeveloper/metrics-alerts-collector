@@ -2,9 +2,10 @@ package usecase
 
 import (
 	"fmt"
+	"strconv"
+
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/logger"
 	"go.uber.org/zap"
-	"strconv"
 
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/domain/model"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/domain/repository"
@@ -49,13 +50,13 @@ func (s *MetricService) GetMetricValue(req *dto.MetricValueRequest) (*dto.Metric
 	resp := dto.MetricValueResponse{
 		Name:  "",
 		Type:  "",
-		Value: "",
+		Value: nil,
 	}
 	if metric == nil {
 		return &resp, fmt.Errorf("metric not found")
 	}
 
-	value, err := formatMetricValue(metric, req.Type)
+	value, err := getMetricValueAsAny(metric, req.Type)
 	if err != nil {
 		logger.Log.Warn("Value is null", zap.Error(err))
 		return &resp, err
@@ -108,4 +109,19 @@ func formatMetricValue(metric *model.Metrics, metricType string) (string, error)
 	}
 
 	return "", fmt.Errorf("metric value is nil")
+}
+
+func getMetricValueAsAny(metric *model.Metrics, metricType string) (any, error) {
+	switch metricType {
+	case "gauge":
+		if metric.Value != nil {
+			return *metric.Value, nil
+		}
+	case "counter":
+		if metric.Delta != nil {
+			return *metric.Delta, nil
+		}
+	}
+
+	return nil, fmt.Errorf("metric value is nil")
 }
