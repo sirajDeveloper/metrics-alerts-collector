@@ -5,6 +5,9 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/sirajDeveloper/metrics-alerts-collector/internal/logger"
+	"go.uber.org/zap"
+
 	"github.com/go-resty/resty/v2"
 
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/agent/domain"
@@ -26,7 +29,6 @@ func NewHTTPSender(url string) *HTTPSender {
 var _ usecase.MetricSender = (*HTTPSender)(nil)
 
 func (s *HTTPSender) Send(metric domain.Metric) error {
-	typeStr := string(metric.Type)
 
 	var valueStr string
 	switch v := metric.Value.(type) {
@@ -38,16 +40,24 @@ func (s *HTTPSender) Send(metric domain.Metric) error {
 		valueStr = strconv.Itoa(v)
 	}
 
-	url := fmt.Sprintf("%s/update/%s/%s/%s", s.serverURL, typeStr, metric.Name, valueStr)
-	fmt.Printf("Request url: %v\n", url)
+	req := MetricUpdateRequest{
+		Name:  metric.Name,
+		Type:  string(metric.Type),
+		Value: valueStr,
+	}
+
+	url := s.serverURL + "/update"
+	logger.Log.Info("Request", zap.String("url", url), zap.Any("body", req))
+	logger.Log.Info("Request body")
 
 	resp, err := s.client.R().
-		SetHeader("Content-Type", "text/plain").
+		SetHeader("Content-Type", "application/json").
+		SetBody(&req).
 		Post(url)
 	if err != nil {
 		return err
 	}
-	fmt.Printf("Response http code: %v\n", resp.StatusCode())
+	logger.Log.Info("Response http code", zap.Int("code", resp.StatusCode()))
 
 	if resp.StatusCode() != http.StatusOK {
 		return fmt.Errorf("unexpected status code: %d", resp.StatusCode())
@@ -78,4 +88,10 @@ func (s *HTTPSender) Send(metric domain.Metric) error {
 		}
 	*/
 	return nil
+}
+
+type MetricUpdateRequest struct {
+	Name  string `json:"name" validate:"required"`
+	Type  string `json:"type" validate:"required"`
+	Value string `json:"value"`
 }

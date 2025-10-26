@@ -26,14 +26,8 @@ func NewChiRouter(metricUpdater usecase.MetricUpdater, metricGetter usecase.Metr
 	handler := httpHandler.NewMetricsHandler(metricUpdater, metricGetter)
 
 	r.Get("/", handler.GetAllMetrics)
-
-	r.Route("/update", func(r chi.Router) {
-		r.Post("/{type}/{name}/{value}", handler.UpdateMetric)
-	})
-
-	r.Route("/value", func(r chi.Router) {
-		r.Get("/{type}/{name}", handler.GetMetricValue)
-	})
+	r.Post("/update", handler.UpdateMetric)
+	r.Get("/value", handler.GetMetricValue)
 
 	return &ChiRouter{
 		router:         r,

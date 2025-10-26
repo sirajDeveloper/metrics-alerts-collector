@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/sirajDeveloper/metrics-alerts-collector/internal/logger"
 	"log"
 	"os"
 	"os/signal"
@@ -15,6 +16,8 @@ import (
 
 func main() {
 	ParseConfig()
+	logger.InitLogger(false)
+
 	serverURL := "http://" + address
 	sender := infrastructure.NewHTTPSender(serverURL)
 	fmt.Printf("HTTPSender init with serverURL: %v\n", serverURL)
