@@ -2,6 +2,8 @@ package usecase
 
 import (
 	"fmt"
+	"github.com/sirajDeveloper/metrics-alerts-collector/internal/logger"
+	"go.uber.org/zap"
 	"strconv"
 
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/domain/model"
@@ -10,12 +12,12 @@ import (
 )
 
 type MetricUpdater interface {
-	MetricUpdate(metricType string, metricName string, metricValue string) error
+	MetricUpdate(req *dto.MetricUpdateRequest) error
 }
 
 type MetricGetter interface {
-	GetMetricValue(metricType, metricName string) (string, error)
-	GetAllMetricsForDisplay() []dto.MetricDTO
+	GetMetricValue(req *dto.MetricValueRequest) (*dto.MetricValueResponse, error)
+	GetAllMetricsForDisplay() []dto.DisplayMetricDTO
 }
 
 var _ MetricUpdater = (*MetricService)(nil)
@@ -29,32 +31,47 @@ func NewMetricService(repo repository.MetricRepository) *MetricService {
 	return &MetricService{repo: repo}
 }
 
-func (s *MetricService) MetricUpdate(metricType string, metricName string, metricValue string) error {
-	metric := s.repo.GetMetric(metricType, metricName)
+func (s *MetricService) MetricUpdate(req *dto.MetricUpdateRequest) error {
+	metric := s.repo.GetMetric(req.Type, req.Name)
 	if metric == nil {
-		metric = model.CreateMetric(metricName, metricType)
+		metric = model.CreateMetric(req.Name, req.Type)
 	}
 
-	if err := metric.UpdateMetric(metricValue); err != nil {
+	if err := metric.UpdateMetric(req.Value); err != nil {
 		return err
 	}
 	s.repo.Save(metric)
 	return nil
 }
 
-func (s *MetricService) GetMetricValue(metricType, metricName string) (string, error) {
-	metric := s.repo.GetMetric(metricType, metricName)
+func (s *MetricService) GetMetricValue(req *dto.MetricValueRequest) (*dto.MetricValueResponse, error) {
+	metric := s.repo.GetMetric(req.Type, req.Name)
+	resp := dto.MetricValueResponse{
+		Name:  "",
+		Type:  "",
+		Value: nil,
+	}
 	if metric == nil {
-		return "", fmt.Errorf("metric not found")
+		return &resp, fmt.Errorf("metric not found")
 	}
 
-	return formatMetricValue(metric, metricType)
+	value, err := formatMetricValue(metric, req.Type)
+	if err != nil {
+		logger.Log.Warn("Value is null", zap.Error(err))
+		return &resp, err
+	}
+
+	resp.Name = metric.ID
+	resp.Type = metric.MType
+	resp.Value = value
+
+	return &resp, nil
 }
 
-func (s *MetricService) GetAllMetricsForDisplay() []dto.MetricDTO {
+func (s *MetricService) GetAllMetricsForDisplay() []dto.DisplayMetricDTO {
 	metrics := s.repo.GetAll()
 
-	displayMetrics := make([]dto.MetricDTO, 0, len(metrics))
+	displayMetrics := make([]dto.DisplayMetricDTO, 0, len(metrics))
 	for _, m := range metrics {
 		var valueStr string
 		switch m.MType {
@@ -68,7 +85,7 @@ func (s *MetricService) GetAllMetricsForDisplay() []dto.MetricDTO {
 			}
 		}
 
-		displayMetrics = append(displayMetrics, dto.MetricDTO{
+		displayMetrics = append(displayMetrics, dto.DisplayMetricDTO{
 			ID:       m.ID,
 			MType:    m.MType,
 			ValueStr: valueStr,

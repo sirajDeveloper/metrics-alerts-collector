@@ -1,6 +1,6 @@
 package dto
 
-type MetricDTO struct {
+type DisplayMetricDTO struct {
 	ID       string
 	MType    string
 	ValueStr string

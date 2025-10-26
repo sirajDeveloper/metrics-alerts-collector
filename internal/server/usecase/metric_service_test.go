@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/mock"
 
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/domain/model"
+	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/usecase/dto"
 )
 
 type MockRepository struct {
@@ -36,18 +37,18 @@ func (m *MockRepository) GetAll() []*model.Metrics {
 func TestMetricService_MetricUpdate(t *testing.T) {
 	tests := []struct {
 		name          string
-		metricType    string
-		metricName    string
-		metricValue   string
+		request       *dto.MetricUpdateRequest
 		setupMock     func(repo *MockRepository)
 		expectedError bool
 		errorContains string
 	}{
 		{
-			name:        "создание новой gauge метрики с валидным значением",
-			metricType:  "gauge",
-			metricName:  "temperature",
-			metricValue: "25.5",
+			name: "создание новой gauge метрики с валидным значением",
+			request: &dto.MetricUpdateRequest{
+				Name:  "temperature",
+				Type:  "gauge",
+				Value: "25.5",
+			},
 			setupMock: func(repo *MockRepository) {
 				repo.On("GetMetric", "gauge", "temperature").Return(nil)
 
@@ -61,10 +62,12 @@ func TestMetricService_MetricUpdate(t *testing.T) {
 			expectedError: false,
 		},
 		{
-			name:        "создание новой counter метрики с валидным значением",
-			metricType:  "counter",
-			metricName:  "requests",
-			metricValue: "100",
+			name: "создание новой counter метрики с валидным значением",
+			request: &dto.MetricUpdateRequest{
+				Name:  "requests",
+				Type:  "counter",
+				Value: "100",
+			},
 			setupMock: func(repo *MockRepository) {
 				repo.On("GetMetric", "counter", "requests").Return(nil)
 
@@ -78,10 +81,12 @@ func TestMetricService_MetricUpdate(t *testing.T) {
 			expectedError: false,
 		},
 		{
-			name:        "обновление существующей gauge метрики",
-			metricType:  "gauge",
-			metricName:  "temperature",
-			metricValue: "30.0",
+			name: "обновление существующей gauge метрики",
+			request: &dto.MetricUpdateRequest{
+				Name:  "temperature",
+				Type:  "gauge",
+				Value: "30.0",
+			},
 			setupMock: func(repo *MockRepository) {
 				existingMetric := &model.Metrics{
 					ID:    "temperature",
@@ -101,10 +106,12 @@ func TestMetricService_MetricUpdate(t *testing.T) {
 			expectedError: false,
 		},
 		{
-			name:        "обновление существующей counter метрики (суммирование)",
-			metricType:  "counter",
-			metricName:  "requests",
-			metricValue: "50",
+			name: "обновление существующей counter метрики (суммирование)",
+			request: &dto.MetricUpdateRequest{
+				Name:  "requests",
+				Type:  "counter",
+				Value: "50",
+			},
 			setupMock: func(repo *MockRepository) {
 				existingMetric := &model.Metrics{
 					ID:    "requests",
@@ -124,10 +131,12 @@ func TestMetricService_MetricUpdate(t *testing.T) {
 			expectedError: false,
 		},
 		{
-			name:        "невалидное значение для gauge (не число)",
-			metricType:  "gauge",
-			metricName:  "temperature",
-			metricValue: "invalid",
+			name: "невалидное значение для gauge (не число)",
+			request: &dto.MetricUpdateRequest{
+				Name:  "temperature",
+				Type:  "gauge",
+				Value: "invalid",
+			},
 			setupMock: func(repo *MockRepository) {
 				repo.On("GetMetric", "gauge", "temperature").Return(nil)
 			},
@@ -135,10 +144,12 @@ func TestMetricService_MetricUpdate(t *testing.T) {
 			errorContains: "invalid float64 value",
 		},
 		{
-			name:        "невалидное значение для counter (не целое число)",
-			metricType:  "counter",
-			metricName:  "requests",
-			metricValue: "12.34",
+			name: "невалидное значение для counter (не целое число)",
+			request: &dto.MetricUpdateRequest{
+				Name:  "requests",
+				Type:  "counter",
+				Value: "12.34",
+			},
 			setupMock: func(repo *MockRepository) {
 				repo.On("GetMetric", "counter", "requests").Return(nil)
 			},
@@ -146,10 +157,12 @@ func TestMetricService_MetricUpdate(t *testing.T) {
 			errorContains: "invalid int64 value",
 		},
 		{
-			name:        "неизвестный тип метрики",
-			metricType:  "unknown",
-			metricName:  "test",
-			metricValue: "123",
+			name: "неизвестный тип метрики",
+			request: &dto.MetricUpdateRequest{
+				Name:  "test",
+				Type:  "unknown",
+				Value: "123",
+			},
 			setupMock: func(repo *MockRepository) {
 				repo.On("GetMetric", "unknown", "test").Return(nil)
 			},
@@ -165,7 +178,7 @@ func TestMetricService_MetricUpdate(t *testing.T) {
 
 			service := NewMetricService(mockRepo)
 
-			err := service.MetricUpdate(tt.metricType, tt.metricName, tt.metricValue)
+			err := service.MetricUpdate(tt.request)
 
 			if tt.expectedError {
 				assert.Error(t, err, "Ожидалась ошибка, но её не было")

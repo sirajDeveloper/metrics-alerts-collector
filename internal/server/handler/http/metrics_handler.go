@@ -2,10 +2,13 @@ package http
 
 import (
 	"embed"
+	"encoding/json"
 	"html/template"
 	"net/http"
 
-	"github.com/go-chi/chi/v5"
+	"github.com/sirajDeveloper/metrics-alerts-collector/internal/logger"
+	"go.uber.org/zap"
+
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/usecase"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/usecase/dto"
 )
@@ -26,20 +29,27 @@ func NewMetricsHandler(metricUpdater usecase.MetricUpdater, metricGetter usecase
 }
 
 func (h *MetricsHandler) UpdateCounter(w http.ResponseWriter, r *http.Request) {
-	metricName := chi.URLParam(r, "name")
-	metricValue := chi.URLParam(r, "value")
+	var req dto.MetricUpdateRequest
 
-	if metricName == "" {
+	dec := json.NewDecoder(r.Body)
+
+	if err := dec.Decode(&req); err != nil {
+		logger.Log.Debug("cannot decode request JSON body", zap.Error(err))
+		http.Error(w, "cannot decode request JSON body", http.StatusInternalServerError)
+		return
+	}
+
+	if req.Name == "" {
 		http.Error(w, "Metric name is required", http.StatusBadRequest)
 		return
 	}
 
-	if metricValue == "" {
+	if req.Value == "" {
 		http.Error(w, "Invalid metric value", http.StatusBadRequest)
 		return
 	}
 
-	if err := h.metricUpdater.MetricUpdate("counter", metricName, metricValue); err != nil {
+	if err := h.metricUpdater.MetricUpdate(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -48,20 +58,26 @@ func (h *MetricsHandler) UpdateCounter(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *MetricsHandler) UpdateGauge(w http.ResponseWriter, r *http.Request) {
-	metricName := chi.URLParam(r, "name")
-	metricValue := chi.URLParam(r, "value")
+	var req dto.MetricUpdateRequest
 
-	if metricName == "" {
+	dec := json.NewDecoder(r.Body)
+
+	if err := dec.Decode(&req); err != nil {
+		http.Error(w, "cannot decode request JSON body", http.StatusInternalServerError)
+		return
+	}
+
+	if req.Name == "" {
 		http.Error(w, "Metric name is required", http.StatusBadRequest)
 		return
 	}
 
-	if metricValue == "" {
+	if req.Value == "" {
 		http.Error(w, "Invalid metric value", http.StatusBadRequest)
 		return
 	}
 
-	if err := h.metricUpdater.MetricUpdate("gauge", metricName, metricValue); err != nil {
+	if err := h.metricUpdater.MetricUpdate(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -70,10 +86,14 @@ func (h *MetricsHandler) UpdateGauge(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *MetricsHandler) GetMetricValue(w http.ResponseWriter, r *http.Request) {
-	metricType := chi.URLParam(r, "type")
-	metricName := chi.URLParam(r, "name")
+	var req dto.MetricValueRequest
+	dec := json.NewDecoder(r.Body)
+	if err := dec.Decode(&req); err != nil {
+		http.Error(w, "cannot decode request JSON body", http.StatusInternalServerError)
+		return
+	}
 
-	value, err := h.metricGetter.GetMetricValue(metricType, metricName)
+	resp, err := h.metricGetter.GetMetricValue(&req)
 	if err != nil {
 		http.Error(w, "Metric not found", http.StatusNotFound)
 		return
@@ -81,30 +101,35 @@ func (h *MetricsHandler) GetMetricValue(w http.ResponseWriter, r *http.Request) 
 
 	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(value))
+	if err := json.NewEncoder(w).Encode(&resp); err != nil {
+		http.Error(w, "failed to encode response", http.StatusInternalServerError)
+	}
 }
 
 func (h *MetricsHandler) UpdateMetric(w http.ResponseWriter, r *http.Request) {
-	metricType := chi.URLParam(r, "type")
-	metricName := chi.URLParam(r, "name")
-	metricValue := chi.URLParam(r, "value")
+	var req dto.MetricUpdateRequest
+	dec := json.NewDecoder(r.Body)
+	if err := dec.Decode(&req); err != nil {
+		http.Error(w, "cannot decode request JSON body", http.StatusInternalServerError)
+		return
+	}
 
-	if metricType != "counter" && metricType != "gauge" {
+	if req.Type != "counter" && req.Type != "gauge" {
 		http.Error(w, "Unknown metric type", http.StatusBadRequest)
 		return
 	}
 
-	if metricName == "" {
+	if req.Name == "" {
 		http.Error(w, "Metric name is required", http.StatusBadRequest)
 		return
 	}
 
-	if metricValue == "" {
+	if req.Value == "" {
 		http.Error(w, "Invalid metric value", http.StatusBadRequest)
 		return
 	}
 
-	if err := h.metricUpdater.MetricUpdate(metricType, metricName, metricValue); err != nil {
+	if err := h.metricUpdater.MetricUpdate(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -122,7 +147,7 @@ func (h *MetricsHandler) GetAllMetrics(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := struct {
-		Metrics []dto.MetricDTO
+		Metrics []dto.DisplayMetricDTO
 	}{
 		Metrics: displayMetrics,
 	}
