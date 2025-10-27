@@ -6,12 +6,25 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/sirajDeveloper/metrics-alerts-collector/internal/logger"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/usecase/dto"
 )
+
+func TestMain(m *testing.M) {
+	logger.InitLogger(true)
+	defer func() {
+		err := logger.Sync()
+		if err != nil {
+		}
+	}()
+
+	os.Exit(m.Run())
+}
 
 type mockMetricUpdater struct {
 	updateFunc           func(req *dto.MetricUpdateRequest) error

@@ -3,14 +3,14 @@ package http
 import (
 	"embed"
 	"encoding/json"
-	"github.com/sirajDeveloper/metrics-alerts-collector/internal/logger"
-	"go.uber.org/zap"
 	"strconv"
 
 	"html/template"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/sirajDeveloper/metrics-alerts-collector/internal/logger"
+	"go.uber.org/zap"
 
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/usecase"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/usecase/dto"
@@ -137,7 +137,9 @@ func (h *MetricsHandler) GetMetricValue(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	logger.Log.Info("Payload", zap.Any("requestBody", req), zap.Any("responseBody", resp))
+	if logger.Log != nil {
+		logger.Log.Info("GetMetricValue", zap.Any("requestBody", req), zap.Any("responseBody", resp))
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -174,7 +176,9 @@ func (h *MetricsHandler) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	logger.Log.Info("Payload", zap.Any("requestBody", req))
+	if logger.Log != nil {
+		logger.Log.Info("UpdateMetric", zap.Any("requestBody", req))
+	}
 
 	if err := h.metricUpdater.MetricUpdate(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
