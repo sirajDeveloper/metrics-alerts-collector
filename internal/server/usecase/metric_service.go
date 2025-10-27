@@ -4,9 +4,6 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/sirajDeveloper/metrics-alerts-collector/internal/logger"
-	"go.uber.org/zap"
-
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/domain/model"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/domain/repository"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/usecase/dto"
@@ -48,23 +45,28 @@ func (s *MetricService) MetricUpdate(req *dto.MetricUpdateRequest) error {
 func (s *MetricService) GetMetricValue(req *dto.MetricValueRequest) (*dto.MetricValueResponse, error) {
 	metric := s.repo.GetMetric(req.Type, req.Name)
 	resp := dto.MetricValueResponse{
-		Name:  "",
-		Type:  "",
+		ID:    "",
+		MType: "",
+		Delta: nil,
 		Value: nil,
 	}
 	if metric == nil {
 		return &resp, fmt.Errorf("metric not found")
 	}
 
-	value, err := getMetricValueAsAny(metric, req.Type)
-	if err != nil {
-		logger.Log.Warn("Value is null", zap.Error(err))
-		return &resp, err
-	}
+	resp.ID = metric.ID
+	resp.MType = metric.MType
 
-	resp.Name = metric.ID
-	resp.Type = metric.MType
-	resp.Value = value
+	switch metric.MType {
+	case "gauge":
+		if metric.Value != nil {
+			resp.Value = metric.Value
+		}
+	case "counter":
+		if metric.Delta != nil {
+			resp.Delta = metric.Delta
+		}
+	}
 
 	return &resp, nil
 }
@@ -94,34 +96,4 @@ func (s *MetricService) GetAllMetricsForDisplay() []dto.DisplayMetricDTO {
 	}
 
 	return displayMetrics
-}
-
-func formatMetricValue(metric *model.Metrics, metricType string) (string, error) {
-	switch metricType {
-	case "gauge":
-		if metric.Value != nil {
-			return strconv.FormatFloat(*metric.Value, 'f', -1, 64), nil
-		}
-	case "counter":
-		if metric.Delta != nil {
-			return strconv.FormatInt(*metric.Delta, 10), nil
-		}
-	}
-
-	return "", fmt.Errorf("metric value is nil")
-}
-
-func getMetricValueAsAny(metric *model.Metrics, metricType string) (any, error) {
-	switch metricType {
-	case "gauge":
-		if metric.Value != nil {
-			return *metric.Value, nil
-		}
-	case "counter":
-		if metric.Delta != nil {
-			return *metric.Delta, nil
-		}
-	}
-
-	return nil, fmt.Errorf("metric value is nil")
 }

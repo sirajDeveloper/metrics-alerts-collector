@@ -63,10 +63,11 @@ func TestGetMetricValue_Success_Counter(t *testing.T) {
 			if req.Name != "testCounter" {
 				t.Errorf("expected metricName 'testCounter', got '%s'", req.Name)
 			}
+			delta := int64(100)
 			return &dto.MetricValueResponse{
-				Name:  "testCounter",
-				Type:  "counter",
-				Value: "100",
+				ID:    "testCounter",
+				MType: "counter",
+				Delta: &delta,
 			}, nil
 		},
 	}
@@ -101,14 +102,14 @@ func TestGetMetricValue_Success_Counter(t *testing.T) {
 		t.Errorf("failed to unmarshal response: %v", err)
 	}
 
-	if response.Name != "testCounter" {
-		t.Errorf("expected name 'testCounter', got '%s'", response.Name)
+	if response.ID != "testCounter" {
+		t.Errorf("expected ID 'testCounter', got '%s'", response.ID)
 	}
-	if response.Type != "counter" {
-		t.Errorf("expected type 'counter', got '%s'", response.Type)
+	if response.MType != "counter" {
+		t.Errorf("expected MType 'counter', got '%s'", response.MType)
 	}
-	if response.Value != "100" {
-		t.Errorf("expected value '100', got '%v'", response.Value)
+	if response.Delta == nil || *response.Delta != 100 {
+		t.Errorf("expected Delta 100, got '%v'", response.Delta)
 	}
 }
 
@@ -121,10 +122,11 @@ func TestGetMetricValue_Success_Gauge(t *testing.T) {
 			if req.Name != "testGauge" {
 				t.Errorf("expected metricName 'testGauge', got '%s'", req.Name)
 			}
+			value := 123.45
 			return &dto.MetricValueResponse{
-				Name:  "testGauge",
-				Type:  "gauge",
-				Value: "123.45",
+				ID:    "testGauge",
+				MType: "gauge",
+				Value: &value,
 			}, nil
 		},
 	}
@@ -155,14 +157,14 @@ func TestGetMetricValue_Success_Gauge(t *testing.T) {
 		t.Errorf("failed to unmarshal response: %v", err)
 	}
 
-	if response.Name != "testGauge" {
-		t.Errorf("expected name 'testGauge', got '%s'", response.Name)
+	if response.ID != "testGauge" {
+		t.Errorf("expected ID 'testGauge', got '%s'", response.ID)
 	}
-	if response.Type != "gauge" {
-		t.Errorf("expected type 'gauge', got '%s'", response.Type)
+	if response.MType != "gauge" {
+		t.Errorf("expected MType 'gauge', got '%s'", response.MType)
 	}
-	if response.Value != "123.45" {
-		t.Errorf("expected value '123.45', got '%v'", response.Value)
+	if response.Value == nil || *response.Value != 123.45 {
+		t.Errorf("expected Value 123.45, got '%v'", response.Value)
 	}
 }
 

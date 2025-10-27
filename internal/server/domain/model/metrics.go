@@ -69,8 +69,6 @@ func (m *Metrics) updateCounter(val any) error {
 		intVal = v
 	case int:
 		intVal = int64(v)
-	case float64:
-		intVal = int64(v)
 	case string:
 		parsed, err := strconv.ParseInt(v, 10, 64)
 		if err != nil {

@@ -44,15 +44,23 @@ func (h *MetricsHandler) GetMetricValueURLParam(w http.ResponseWriter, r *http.R
 	}
 
 	var valueStr string
-	switch v := value.Value.(type) {
-	case float64:
-		valueStr = strconv.FormatFloat(v, 'f', -1, 64)
-	case int64:
-		valueStr = strconv.FormatInt(v, 10)
-	case int:
-		valueStr = strconv.Itoa(v)
+	switch value.MType {
+	case "gauge":
+		if value.Value != nil {
+			valueStr = strconv.FormatFloat(*value.Value, 'f', -1, 64)
+		} else {
+			http.Error(w, "Gauge value is nil", http.StatusInternalServerError)
+			return
+		}
+	case "counter":
+		if value.Delta != nil {
+			valueStr = strconv.FormatInt(*value.Delta, 10)
+		} else {
+			http.Error(w, "Counter value is nil", http.StatusInternalServerError)
+			return
+		}
 	default:
-		http.Error(w, "Invalid value type", http.StatusInternalServerError)
+		http.Error(w, "Invalid metric type", http.StatusInternalServerError)
 		return
 	}
 
