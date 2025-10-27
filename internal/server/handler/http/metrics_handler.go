@@ -10,9 +10,6 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/sirajDeveloper/metrics-alerts-collector/internal/logger"
-	"go.uber.org/zap"
-
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/usecase"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/usecase/dto"
 )
@@ -30,63 +27,6 @@ func NewMetricsHandler(metricUpdater usecase.MetricUpdater, metricGetter usecase
 		metricUpdater: metricUpdater,
 		metricGetter:  metricGetter,
 	}
-}
-
-func (h *MetricsHandler) UpdateCounter(w http.ResponseWriter, r *http.Request) {
-	var req dto.MetricUpdateRequest
-
-	dec := json.NewDecoder(r.Body)
-
-	if err := dec.Decode(&req); err != nil {
-		logger.Log.Debug("cannot decode request JSON body", zap.Error(err))
-		http.Error(w, "cannot decode request JSON body", http.StatusInternalServerError)
-		return
-	}
-
-	if req.Name == "" {
-		http.Error(w, "Metric name is required", http.StatusBadRequest)
-		return
-	}
-
-	if req.Value == nil {
-		http.Error(w, "Invalid metric value", http.StatusBadRequest)
-		return
-	}
-
-	if err := h.metricUpdater.MetricUpdate(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-}
-
-func (h *MetricsHandler) UpdateGauge(w http.ResponseWriter, r *http.Request) {
-	var req dto.MetricUpdateRequest
-
-	dec := json.NewDecoder(r.Body)
-
-	if err := dec.Decode(&req); err != nil {
-		http.Error(w, "cannot decode request JSON body", http.StatusInternalServerError)
-		return
-	}
-
-	if req.Name == "" {
-		http.Error(w, "Metric name is required", http.StatusBadRequest)
-		return
-	}
-
-	if req.Value == nil {
-		http.Error(w, "Invalid metric value", http.StatusBadRequest)
-		return
-	}
-
-	if err := h.metricUpdater.MetricUpdate(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
 }
 
 func (h *MetricsHandler) GetMetricValueURLParam(w http.ResponseWriter, r *http.Request) {
