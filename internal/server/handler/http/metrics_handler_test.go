@@ -57,11 +57,11 @@ func TestNewMetricsHandler(t *testing.T) {
 func TestGetMetricValue_Success_Counter(t *testing.T) {
 	mock := &mockMetricUpdater{
 		getFunc: func(req *dto.MetricValueRequest) (*dto.MetricValueResponse, error) {
-			if req.Type != "counter" {
-				t.Errorf("expected metricType 'counter', got '%s'", req.Type)
+			if req.MType != "counter" {
+				t.Errorf("expected metricType 'counter', got '%s'", req.MType)
 			}
-			if req.Name != "testCounter" {
-				t.Errorf("expected metricName 'testCounter', got '%s'", req.Name)
+			if req.ID != "testCounter" {
+				t.Errorf("expected metricName 'testCounter', got '%s'", req.ID)
 			}
 			delta := int64(100)
 			return &dto.MetricValueResponse{
@@ -75,8 +75,8 @@ func TestGetMetricValue_Success_Counter(t *testing.T) {
 	handler := NewMetricsHandler(mock, mock)
 
 	requestBody := dto.MetricValueRequest{
-		Name: "testCounter",
-		Type: "counter",
+		ID:    "testCounter",
+		MType: "counter",
 	}
 	jsonBody, _ := json.Marshal(requestBody)
 
@@ -116,11 +116,11 @@ func TestGetMetricValue_Success_Counter(t *testing.T) {
 func TestGetMetricValue_Success_Gauge(t *testing.T) {
 	mock := &mockMetricUpdater{
 		getFunc: func(req *dto.MetricValueRequest) (*dto.MetricValueResponse, error) {
-			if req.Type != "gauge" {
-				t.Errorf("expected metricType 'gauge', got '%s'", req.Type)
+			if req.MType != "gauge" {
+				t.Errorf("expected metricType 'gauge', got '%s'", req.MType)
 			}
-			if req.Name != "testGauge" {
-				t.Errorf("expected metricName 'testGauge', got '%s'", req.Name)
+			if req.ID != "testGauge" {
+				t.Errorf("expected metricName 'testGauge', got '%s'", req.ID)
 			}
 			value := 123.45
 			return &dto.MetricValueResponse{
@@ -134,8 +134,8 @@ func TestGetMetricValue_Success_Gauge(t *testing.T) {
 	handler := NewMetricsHandler(mock, mock)
 
 	requestBody := dto.MetricValueRequest{
-		Name: "testGauge",
-		Type: "gauge",
+		ID:    "testGauge",
+		MType: "gauge",
 	}
 	jsonBody, _ := json.Marshal(requestBody)
 
@@ -178,8 +178,8 @@ func TestGetMetricValue_NotFound(t *testing.T) {
 	handler := NewMetricsHandler(mock, mock)
 
 	requestBody := dto.MetricValueRequest{
-		Name: "unknown",
-		Type: "counter",
+		ID:    "unknown",
+		MType: "counter",
 	}
 	jsonBody, _ := json.Marshal(requestBody)
 
@@ -265,9 +265,8 @@ func TestUpdateMetric_UnknownType(t *testing.T) {
 	handler := NewMetricsHandler(mock, mock)
 
 	requestBody := dto.MetricUpdateRequest{
-		Name:  "testMetric",
-		Type:  "unknown",
-		Value: "100",
+		ID:    "testMetric",
+		MType: "unknown",
 	}
 	jsonBody, _ := json.Marshal(requestBody)
 
@@ -288,8 +287,8 @@ func TestUpdateMetric_UnknownType(t *testing.T) {
 func TestUpdateMetric_Counter_Success(t *testing.T) {
 	mock := &mockMetricUpdater{
 		updateFunc: func(req *dto.MetricUpdateRequest) error {
-			if req.Type != "counter" {
-				t.Errorf("expected metricType 'counter', got '%s'", req.Type)
+			if req.MType != "counter" {
+				t.Errorf("expected metricType 'counter', got '%s'", req.MType)
 			}
 			return nil
 		},
@@ -297,10 +296,11 @@ func TestUpdateMetric_Counter_Success(t *testing.T) {
 
 	handler := NewMetricsHandler(mock, mock)
 
+	delta := int64(100)
 	requestBody := dto.MetricUpdateRequest{
-		Name:  "test",
-		Type:  "counter",
-		Value: "100",
+		ID:    "test",
+		MType: "counter",
+		Delta: &delta,
 	}
 	jsonBody, _ := json.Marshal(requestBody)
 
@@ -321,8 +321,8 @@ func TestUpdateMetric_Counter_Success(t *testing.T) {
 func TestUpdateMetric_Gauge_Success(t *testing.T) {
 	mock := &mockMetricUpdater{
 		updateFunc: func(req *dto.MetricUpdateRequest) error {
-			if req.Type != "gauge" {
-				t.Errorf("expected metricType 'gauge', got '%s'", req.Type)
+			if req.MType != "gauge" {
+				t.Errorf("expected metricType 'gauge', got '%s'", req.MType)
 			}
 			return nil
 		},
@@ -330,10 +330,11 @@ func TestUpdateMetric_Gauge_Success(t *testing.T) {
 
 	handler := NewMetricsHandler(mock, mock)
 
+	value := 123.45
 	requestBody := dto.MetricUpdateRequest{
-		Name:  "test",
-		Type:  "gauge",
-		Value: "123.45",
+		ID:    "test",
+		MType: "gauge",
+		Value: &value,
 	}
 	jsonBody, _ := json.Marshal(requestBody)
 

@@ -45,9 +45,9 @@ func TestMetricService_MetricUpdate(t *testing.T) {
 		{
 			name: "создание новой gauge метрики с валидным значением",
 			request: &dto.MetricUpdateRequest{
-				Name:  "temperature",
-				Type:  "gauge",
-				Value: "25.5",
+				ID:    "temperature",
+				MType: "gauge",
+				Value: func() *float64 { v := 25.5; return &v }(),
 			},
 			setupMock: func(repo *MockRepository) {
 				repo.On("GetMetric", "gauge", "temperature").Return(nil)
@@ -64,9 +64,9 @@ func TestMetricService_MetricUpdate(t *testing.T) {
 		{
 			name: "создание новой counter метрики с валидным значением",
 			request: &dto.MetricUpdateRequest{
-				Name:  "requests",
-				Type:  "counter",
-				Value: "100",
+				ID:    "requests",
+				MType: "counter",
+				Delta: func() *int64 { v := int64(100); return &v }(),
 			},
 			setupMock: func(repo *MockRepository) {
 				repo.On("GetMetric", "counter", "requests").Return(nil)
@@ -83,9 +83,9 @@ func TestMetricService_MetricUpdate(t *testing.T) {
 		{
 			name: "обновление существующей gauge метрики",
 			request: &dto.MetricUpdateRequest{
-				Name:  "temperature",
-				Type:  "gauge",
-				Value: "30.0",
+				ID:    "temperature",
+				MType: "gauge",
+				Value: func() *float64 { v := 30.0; return &v }(),
 			},
 			setupMock: func(repo *MockRepository) {
 				existingMetric := &model.Metrics{
@@ -108,9 +108,9 @@ func TestMetricService_MetricUpdate(t *testing.T) {
 		{
 			name: "обновление существующей counter метрики (суммирование)",
 			request: &dto.MetricUpdateRequest{
-				Name:  "requests",
-				Type:  "counter",
-				Value: "50",
+				ID:    "requests",
+				MType: "counter",
+				Delta: func() *int64 { v := int64(50); return &v }(),
 			},
 			setupMock: func(repo *MockRepository) {
 				existingMetric := &model.Metrics{
@@ -131,43 +131,42 @@ func TestMetricService_MetricUpdate(t *testing.T) {
 			expectedError: false,
 		},
 		{
-			name: "невалидное значение для gauge (не число)",
+			name: "gauge без значения",
 			request: &dto.MetricUpdateRequest{
-				Name:  "temperature",
-				Type:  "gauge",
-				Value: "invalid",
+				ID:    "temperature",
+				MType: "gauge",
+				Value: nil,
 			},
 			setupMock: func(repo *MockRepository) {
 				repo.On("GetMetric", "gauge", "temperature").Return(nil)
 			},
 			expectedError: true,
-			errorContains: "invalid float64 value",
+			errorContains: "gauge value is required",
 		},
 		{
-			name: "невалидное значение для counter (не целое число)",
+			name: "counter без значения",
 			request: &dto.MetricUpdateRequest{
-				Name:  "requests",
-				Type:  "counter",
-				Value: "12.34",
+				ID:    "requests",
+				MType: "counter",
+				Delta: nil,
 			},
 			setupMock: func(repo *MockRepository) {
 				repo.On("GetMetric", "counter", "requests").Return(nil)
 			},
 			expectedError: true,
-			errorContains: "invalid int64 value",
+			errorContains: "counter delta is required",
 		},
 		{
 			name: "неизвестный тип метрики",
 			request: &dto.MetricUpdateRequest{
-				Name:  "test",
-				Type:  "unknown",
-				Value: "123",
+				ID:    "test",
+				MType: "unknown",
 			},
 			setupMock: func(repo *MockRepository) {
 				repo.On("GetMetric", "unknown", "test").Return(nil)
 			},
 			expectedError: true,
-			errorContains: "invalid metric type",
+			errorContains: "unknown metric type",
 		},
 	}
 

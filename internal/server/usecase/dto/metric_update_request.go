@@ -1,7 +1,8 @@
 package dto
 
 type MetricUpdateRequest struct {
-	Name  string `json:"id" validate:"required"`
-	Type  string `json:"type" validate:"required"`
-	Value any    `json:"value"`
+	ID    string   `json:"id" validate:"required"`
+	MType string   `json:"type" validate:"required"`
+	Delta *int64   `json:"delta,omitempty"`
+	Value *float64 `json:"value,omitempty"`
 }

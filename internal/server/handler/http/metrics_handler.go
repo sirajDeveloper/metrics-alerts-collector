@@ -34,7 +34,7 @@ func (h *MetricsHandler) GetMetricValueURLParam(w http.ResponseWriter, r *http.R
 	metricName := chi.URLParam(r, "name")
 
 	req := dto.MetricValueRequest{
-		Name: metricName, Type: metricType,
+		ID: metricName, MType: metricType,
 	}
 
 	value, err := h.metricGetter.GetMetricValue(&req)
@@ -93,8 +93,25 @@ func (h *MetricsHandler) UpdateMetricURLParam(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	req := dto.MetricUpdateRequest{
-		Name: metricName, Type: metricType, Value: metricValue,
+	var req dto.MetricUpdateRequest
+	req.ID = metricName
+	req.MType = metricType
+
+	switch metricType {
+	case "gauge":
+		val, err := strconv.ParseFloat(metricValue, 64)
+		if err != nil {
+			http.Error(w, "Invalid gauge value", http.StatusBadRequest)
+			return
+		}
+		req.Value = &val
+	case "counter":
+		val, err := strconv.ParseInt(metricValue, 10, 64)
+		if err != nil {
+			http.Error(w, "Invalid counter value", http.StatusBadRequest)
+			return
+		}
+		req.Delta = &val
 	}
 	if err := h.metricUpdater.MetricUpdate(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -133,18 +150,23 @@ func (h *MetricsHandler) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.Type != "counter" && req.Type != "gauge" {
+	if req.MType != "counter" && req.MType != "gauge" {
 		http.Error(w, "Unknown metric type", http.StatusBadRequest)
 		return
 	}
 
-	if req.Name == "" {
+	if req.ID == "" {
 		http.Error(w, "Metric name is required", http.StatusBadRequest)
 		return
 	}
 
-	if req.Value == nil {
-		http.Error(w, "Metric value is required", http.StatusBadRequest)
+	if req.MType == "gauge" && req.Value == nil {
+		http.Error(w, "Gauge value is required", http.StatusBadRequest)
+		return
+	}
+
+	if req.MType == "counter" && req.Delta == nil {
+		http.Error(w, "Counter delta is required", http.StatusBadRequest)
 		return
 	}
 

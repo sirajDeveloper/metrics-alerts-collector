@@ -30,12 +30,30 @@ func NewMetricService(repo repository.MetricRepository) *MetricService {
 }
 
 func (s *MetricService) MetricUpdate(req *dto.MetricUpdateRequest) error {
-	metric := s.repo.GetMetric(req.Type, req.Name)
+	metric := s.repo.GetMetric(req.MType, req.ID)
 	if metric == nil {
-		metric = model.CreateMetric(req.Name, req.Type)
+		metric = model.CreateMetric(req.ID, req.MType)
 	}
 
-	if err := metric.UpdateMetric(req.Value); err != nil {
+	var value any
+	switch req.MType {
+	case "gauge":
+		if req.Value != nil {
+			value = *req.Value
+		} else {
+			return fmt.Errorf("gauge value is required")
+		}
+	case "counter":
+		if req.Delta != nil {
+			value = *req.Delta
+		} else {
+			return fmt.Errorf("counter delta is required")
+		}
+	default:
+		return fmt.Errorf("unknown metric type: %s", req.MType)
+	}
+
+	if err := metric.UpdateMetric(value); err != nil {
 		return err
 	}
 	s.repo.Save(metric)
@@ -43,7 +61,7 @@ func (s *MetricService) MetricUpdate(req *dto.MetricUpdateRequest) error {
 }
 
 func (s *MetricService) GetMetricValue(req *dto.MetricValueRequest) (*dto.MetricValueResponse, error) {
-	metric := s.repo.GetMetric(req.Type, req.Name)
+	metric := s.repo.GetMetric(req.MType, req.ID)
 	resp := dto.MetricValueResponse{
 		ID:    "",
 		MType: "",
