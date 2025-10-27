@@ -20,6 +20,7 @@ func TestMain(m *testing.M) {
 	defer func() {
 		err := logger.Sync()
 		if err != nil {
+			logger.Log.Error("Error while logger.Sync")
 		}
 	}()
 
