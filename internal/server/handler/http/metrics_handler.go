@@ -3,6 +3,8 @@ package http
 import (
 	"embed"
 	"encoding/json"
+	"github.com/sirajDeveloper/metrics-alerts-collector/internal/logger"
+	"go.uber.org/zap"
 	"strconv"
 
 	"html/template"
@@ -135,6 +137,8 @@ func (h *MetricsHandler) GetMetricValue(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	logger.Log.Info("Payload", zap.Any("requestBody", req), zap.Any("responseBody", resp))
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(&resp); err != nil {
@@ -169,6 +173,8 @@ func (h *MetricsHandler) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Counter delta is required", http.StatusBadRequest)
 		return
 	}
+
+	logger.Log.Info("Payload", zap.Any("requestBody", req))
 
 	if err := h.metricUpdater.MetricUpdate(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)

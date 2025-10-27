@@ -27,15 +27,35 @@ func NewHTTPSender(url string) *HTTPSender {
 var _ usecase.MetricSender = (*HTTPSender)(nil)
 
 func (s *HTTPSender) Send(metric domain.Metric) error {
+	var req MetricUpdateRequest
 
-	req := MetricUpdateRequest{
-		Name:  metric.Name,
-		Type:  string(metric.Type),
-		Value: metric.Value,
+	switch metric.Type {
+	case domain.Counter:
+		valInt, ok := metric.Value.(int64)
+		if !ok {
+			return fmt.Errorf("invalid counter value type")
+		}
+		req = MetricUpdateRequest{
+			Name:  metric.Name,
+			Type:  string(metric.Type),
+			Delta: &valInt,
+		}
+	case domain.Gauge:
+		valFloat, ok := metric.Value.(float64)
+		if !ok {
+			return fmt.Errorf("invalid gauge value type")
+		}
+		req = MetricUpdateRequest{
+			Name:  metric.Name,
+			Type:  string(metric.Type),
+			Value: &valFloat,
+		}
+	default:
+		return fmt.Errorf("unknown metric type")
 	}
 
 	url := s.serverURL + "/update"
-	logger.Log.Info("Request to", zap.String("url", url))
+	logger.Log.Info("Request to", zap.String("url", url), zap.Any("body", req))
 
 	resp, err := s.client.R().
 		SetHeader("Content-Type", "application/json").
@@ -44,7 +64,7 @@ func (s *HTTPSender) Send(metric domain.Metric) error {
 	if err != nil {
 		return err
 	}
-	logger.Log.Info("Response http code", zap.Int("code", resp.StatusCode()))
+	logger.Log.Info("Response", zap.Int("http code", resp.StatusCode()))
 
 	if resp.StatusCode() != http.StatusOK {
 		return fmt.Errorf("unexpected status code: %d", resp.StatusCode())
@@ -54,7 +74,8 @@ func (s *HTTPSender) Send(metric domain.Metric) error {
 }
 
 type MetricUpdateRequest struct {
-	Name  string `json:"id" validate:"required"`
-	Type  string `json:"type" validate:"required"`
-	Value any    `json:"value"`
+	Name  string   `json:"id" validate:"required"`
+	Type  string   `json:"type" validate:"required"`
+	Delta *int64   `json:"delta,omitempty"`
+	Value *float64 `json:"value,omitempty"`
 }

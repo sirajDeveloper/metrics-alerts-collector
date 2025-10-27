@@ -42,8 +42,6 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 			zap.String("method", request.Method),
 			zap.String("uri", request.RequestURI),
 			zap.Duration("duration", duration),
-			zap.Int("status", rw.status),
-			zap.Int("size", rw.status),
 		)
 	})
 	return fn
