@@ -2,10 +2,9 @@ package middleware
 
 import (
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/logger"
+	"go.uber.org/zap"
 	"net/http"
 	"time"
-
-	"go.uber.org/zap"
 )
 
 type responseWriter struct {

@@ -22,6 +22,7 @@ func NewChiRouter(metricUpdater usecase.MetricUpdater, metricGetter usecase.Metr
 
 	r.Use(chiMidware.Recoverer)
 	r.Use(customMidWare.LoggingMiddleware)
+	r.Use(customMidWare.GzipMiddleware)
 
 	handler := httpHandler.NewMetricsHandler(metricUpdater, metricGetter)
 

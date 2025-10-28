@@ -1,6 +1,9 @@
 package infrastructure
 
 import (
+	"bytes"
+	"compress/gzip"
+	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -57,9 +60,20 @@ func (s *HTTPSender) Send(metric domain.Metric) error {
 	url := s.serverURL + "/update"
 	logger.Log.Info("Request to", zap.String("url", url), zap.Any("body", req))
 
+	jsonData, err := json.Marshal(&req)
+	if err != nil {
+		return err
+	}
+
+	compressedData, err := compressBody(jsonData, "application/json")
+	if err != nil {
+		return err
+	}
+
 	resp, err := s.client.R().
 		SetHeader("Content-Type", "application/json").
-		SetBody(&req).
+		SetHeader("Content-Encoding", "gzip").
+		SetBody(compressedData).
 		Post(url)
 	if err != nil {
 		return err
@@ -78,4 +92,34 @@ type MetricUpdateRequest struct {
 	Type  string   `json:"type" validate:"required"`
 	Delta *int64   `json:"delta,omitempty"`
 	Value *float64 `json:"value,omitempty"`
+}
+
+func compressBody(data []byte, contentType string) ([]byte, error) {
+	allowedTypes := []string{"application/json", "text/html"}
+	allowed := false
+	for _, t := range allowedTypes {
+		if contentType == t {
+			allowed = true
+			break
+		}
+	}
+
+	if !allowed {
+		return data, nil
+	}
+
+	var buf bytes.Buffer
+	zw := gzip.NewWriter(&buf)
+
+	_, err := zw.Write(data)
+	if err != nil {
+		zw.Close()
+		return nil, err
+	}
+
+	if err := zw.Close(); err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
 }
