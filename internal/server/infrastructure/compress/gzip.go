@@ -19,7 +19,7 @@ func NewGzipWriter(w http.ResponseWriter) *GzipWriter {
 }
 
 func (c *GzipWriter) Header() http.Header {
-	return c.Header()
+	return c.ResponseWriter.Header()
 }
 
 func (c *GzipWriter) Write(p []byte) (int, error) {
@@ -30,7 +30,7 @@ func (c *GzipWriter) WriteHeader(statusCode int) {
 	if statusCode < 300 {
 		c.Header().Set("Content-Encoding", "gzip")
 	}
-	c.WriteHeader(statusCode)
+	c.ResponseWriter.WriteHeader(statusCode)
 }
 
 // Close закрывает gzip.Writer и досылает все данные из буфера.
@@ -57,13 +57,21 @@ func NewGzipReader(r io.ReadCloser) (*GzipReader, error) {
 	}, nil
 }
 
-func (c GzipReader) Read(p []byte) (n int, err error) {
+func (c *GzipReader) Read(p []byte) (n int, err error) {
 	return c.zr.Read(p)
 }
 
 func (c *GzipReader) Close() error {
-	if err := c.Close(); err != nil {
+	if err := c.ReadCloser.Close(); err != nil {
 		return err
 	}
 	return c.zr.Close()
+}
+
+func NewCompressWriter(w http.ResponseWriter) *GzipWriter {
+	return NewGzipWriter(w)
+}
+
+func NewCompressReader(r io.ReadCloser) (*GzipReader, error) {
+	return NewGzipReader(r)
 }
