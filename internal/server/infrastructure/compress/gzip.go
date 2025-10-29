@@ -8,13 +8,17 @@ import (
 
 type GzipWriter struct {
 	http.ResponseWriter
-	zw *gzip.Writer
+	zw          *gzip.Writer
+	wroteHeader bool
+	statusCode  int
 }
 
 func NewGzipWriter(w http.ResponseWriter) *GzipWriter {
 	return &GzipWriter{
 		w,
 		gzip.NewWriter(w),
+		false,
+		0,
 	}
 }
 
@@ -23,19 +27,32 @@ func (c *GzipWriter) Header() http.Header {
 }
 
 func (c *GzipWriter) Write(p []byte) (int, error) {
-	return c.zw.Write(p)
+	if !c.wroteHeader {
+		c.WriteHeader(http.StatusOK)
+	}
+	if c.statusCode < 300 {
+		return c.zw.Write(p)
+	}
+	return c.ResponseWriter.Write(p)
 }
 
 func (c *GzipWriter) WriteHeader(statusCode int) {
-	if statusCode < 300 {
-		c.Header().Set("Content-Encoding", "gzip")
+	if !c.wroteHeader {
+		c.statusCode = statusCode
+		if statusCode < 300 {
+			c.Header().Set("Content-Encoding", "gzip")
+		}
+		c.wroteHeader = true
 	}
 	c.ResponseWriter.WriteHeader(statusCode)
 }
 
 // Close закрывает gzip.Writer и досылает все данные из буфера.
 func (c *GzipWriter) Close() error {
-	return c.zw.Close()
+	if c.statusCode < 300 {
+		return c.zw.Close()
+	}
+	return nil
 }
 
 // GzipReader Reader реализует интерфейс io.ReadCloser и позволяет прозрачно для сервера

@@ -41,6 +41,7 @@ func (h *MetricsHandler) GetMetricValueURLParam(w http.ResponseWriter, r *http.R
 
 	value, err := h.metricGetter.GetMetricValue(&req)
 	if err != nil {
+		logger.Log.Error("GetMetricValueURLParam not found", zap.Any("request", req), zap.Error(err))
 		http.Error(w, "Metric not found", http.StatusNotFound)
 		return
 	}
@@ -51,6 +52,7 @@ func (h *MetricsHandler) GetMetricValueURLParam(w http.ResponseWriter, r *http.R
 		if value.Value != nil {
 			valueStr = strconv.FormatFloat(*value.Value, 'f', -1, 64)
 		} else {
+			logger.Log.Error("GetMetricValueURLParam gauge nil", zap.Any("value", value))
 			http.Error(w, "Gauge value is nil", http.StatusInternalServerError)
 			return
 		}
@@ -58,10 +60,12 @@ func (h *MetricsHandler) GetMetricValueURLParam(w http.ResponseWriter, r *http.R
 		if value.Delta != nil {
 			valueStr = strconv.FormatInt(*value.Delta, 10)
 		} else {
+			logger.Log.Error("GetMetricValueURLParam counter nil", zap.Any("value", value))
 			http.Error(w, "Counter value is nil", http.StatusInternalServerError)
 			return
 		}
 	default:
+		logger.Log.Error("GetMetricValueURLParam invalid type", zap.Any("value", value))
 		http.Error(w, "Invalid metric type", http.StatusInternalServerError)
 		return
 	}
@@ -70,6 +74,7 @@ func (h *MetricsHandler) GetMetricValueURLParam(w http.ResponseWriter, r *http.R
 	w.WriteHeader(http.StatusOK)
 	_, err = w.Write([]byte(valueStr))
 	if err != nil {
+		logger.Log.Error("GetMetricValueURLParam write error", zap.Error(err))
 		http.Error(w, "Error while response writing", http.StatusInternalServerError)
 		return
 	}
@@ -81,16 +86,19 @@ func (h *MetricsHandler) UpdateMetricURLParam(w http.ResponseWriter, r *http.Req
 	metricValue := chi.URLParam(r, "value")
 
 	if metricType != "counter" && metricType != "gauge" {
+		logger.Log.Error("UpdateMetricURLParam unknown type", zap.String("type", metricType))
 		http.Error(w, "Unknown metric type", http.StatusBadRequest)
 		return
 	}
 
 	if metricName == "" {
+		logger.Log.Error("UpdateMetricURLParam name required")
 		http.Error(w, "Metric name is required", http.StatusBadRequest)
 		return
 	}
 
 	if metricValue == "" {
+		logger.Log.Error("UpdateMetricURLParam value invalid")
 		http.Error(w, "Invalid metric value", http.StatusBadRequest)
 		return
 	}
@@ -103,6 +111,7 @@ func (h *MetricsHandler) UpdateMetricURLParam(w http.ResponseWriter, r *http.Req
 	case "gauge":
 		val, err := strconv.ParseFloat(metricValue, 64)
 		if err != nil {
+			logger.Log.Error("UpdateMetricURLParam invalid gauge", zap.String("value", metricValue), zap.Error(err))
 			http.Error(w, "Invalid gauge value", http.StatusBadRequest)
 			return
 		}
@@ -110,12 +119,14 @@ func (h *MetricsHandler) UpdateMetricURLParam(w http.ResponseWriter, r *http.Req
 	case "counter":
 		val, err := strconv.ParseInt(metricValue, 10, 64)
 		if err != nil {
+			logger.Log.Error("UpdateMetricURLParam invalid counter", zap.String("value", metricValue), zap.Error(err))
 			http.Error(w, "Invalid counter value", http.StatusBadRequest)
 			return
 		}
 		req.Delta = &val
 	}
 	if err := h.metricUpdater.MetricUpdate(&req); err != nil {
+		logger.Log.Error("UpdateMetricURLParam update error", zap.Any("request", req), zap.Error(err))
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -127,12 +138,14 @@ func (h *MetricsHandler) GetMetricValue(w http.ResponseWriter, r *http.Request) 
 	var req dto.MetricValueRequest
 	dec := json.NewDecoder(r.Body)
 	if err := dec.Decode(&req); err != nil {
+		logger.Log.Error("GetMetricValue decode error", zap.Error(err))
 		http.Error(w, "cannot decode request JSON body", http.StatusInternalServerError)
 		return
 	}
 
 	resp, err := h.metricGetter.GetMetricValue(&req)
 	if err != nil {
+		logger.Log.Error("GetMetricValue not found", zap.Any("request", req), zap.Error(err))
 		http.Error(w, "Metric not found", http.StatusNotFound)
 		return
 	}
@@ -144,6 +157,7 @@ func (h *MetricsHandler) GetMetricValue(w http.ResponseWriter, r *http.Request) 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(&resp); err != nil {
+		logger.Log.Error("GetMetricValue encode error", zap.Any("response", resp), zap.Error(err))
 		http.Error(w, "failed to encode response", http.StatusInternalServerError)
 	}
 }
@@ -152,26 +166,31 @@ func (h *MetricsHandler) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 	var req dto.MetricUpdateRequest
 	dec := json.NewDecoder(r.Body)
 	if err := dec.Decode(&req); err != nil {
+		logger.Log.Error("UpdateMetric decode error", zap.Error(err))
 		http.Error(w, "cannot decode request JSON body", http.StatusInternalServerError)
 		return
 	}
 
 	if req.MType != "counter" && req.MType != "gauge" {
+		logger.Log.Error("UpdateMetric unknown type", zap.String("type", req.MType))
 		http.Error(w, "Unknown metric type", http.StatusBadRequest)
 		return
 	}
 
 	if req.ID == "" {
+		logger.Log.Error("UpdateMetric name required")
 		http.Error(w, "Metric name is required", http.StatusBadRequest)
 		return
 	}
 
 	if req.MType == "gauge" && req.Value == nil {
+		logger.Log.Error("UpdateMetric gauge required")
 		http.Error(w, "Gauge value is required", http.StatusBadRequest)
 		return
 	}
 
 	if req.MType == "counter" && req.Delta == nil {
+		logger.Log.Error("UpdateMetric counter required")
 		http.Error(w, "Counter delta is required", http.StatusBadRequest)
 		return
 	}
@@ -181,6 +200,7 @@ func (h *MetricsHandler) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.metricUpdater.MetricUpdate(&req); err != nil {
+		logger.Log.Error("UpdateMetric update error", zap.Any("request", req), zap.Error(err))
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -207,6 +227,7 @@ func (h *MetricsHandler) GetAllMetrics(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
 	if err := tmpl.Execute(w, data); err != nil {
+		logger.Log.Error("GetAllMetrics template error", zap.Error(err))
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 	}
 }
