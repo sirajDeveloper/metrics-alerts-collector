@@ -16,8 +16,11 @@ type MetricsEmitterService struct {
 
 var _ event.MetricsSender = (*MetricsEmitterService)(nil)
 
-func NewMetricsEmitterService(repo repository.MetricFileStorage, reportInterval int) *MetricsEmitterService {
-	return &MetricsEmitterService{repo: repo, reportInterval: reportInterval}
+func NewMetricsEmitterService(repo repository.MetricFileStorage, getter MetricGetter, reportInterval int) *MetricsEmitterService {
+	return &MetricsEmitterService{
+		repo:           repo,
+		getter:         getter,
+		reportInterval: reportInterval}
 }
 
 func (s *MetricsEmitterService) Send(e event.MetricsEvent) {
