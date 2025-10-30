@@ -12,6 +12,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/logger"
+	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/domain/model"
+	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/usecase"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/usecase/dto"
 )
 
@@ -31,11 +33,21 @@ type mockMetricUpdater struct {
 	updateFunc           func(req *dto.MetricUpdateRequest) error
 	getFunc              func(req *dto.MetricValueRequest) (*dto.MetricValueResponse, error)
 	getAllForDisplayFunc func() []dto.DisplayMetricDTO
+	getAllMetricsFunc    func() []*model.Metrics
 }
+
+var _ usecase.MetricGetter = (*mockMetricUpdater)(nil)
 
 func (m *mockMetricUpdater) MetricUpdate(req *dto.MetricUpdateRequest) error {
 	if m.updateFunc != nil {
 		return m.updateFunc(req)
+	}
+	return nil
+}
+
+func (m *mockMetricUpdater) GetAllMetrics() []*model.Metrics {
+	if m.getAllMetricsFunc != nil {
+		return m.getAllMetricsFunc()
 	}
 	return nil
 }

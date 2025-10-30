@@ -6,12 +6,21 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
+	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/domain/event"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/domain/model"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/usecase/dto"
 )
 
 type MockRepository struct {
 	mock.Mock
+}
+
+type MockSender struct {
+	mock.Mock
+}
+
+func (m *MockSender) Send(e event.MetricsEvent) {
+	m.Called(e)
 }
 
 func (m *MockRepository) GetMetric(metricType, metricName string) *model.Metrics {
@@ -173,9 +182,14 @@ func TestMetricService_MetricUpdate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockRepo := new(MockRepository)
+			mockSender := new(MockSender)
 			tt.setupMock(mockRepo)
 
-			service := NewMetricService(mockRepo)
+			if !tt.expectedError {
+				mockSender.On("Send", mock.Anything).Return()
+			}
+
+			service := NewMetricService(mockRepo, mockSender)
 
 			err := service.MetricUpdate(tt.request)
 
@@ -190,14 +204,17 @@ func TestMetricService_MetricUpdate(t *testing.T) {
 			}
 
 			mockRepo.AssertExpectations(t)
+			if !tt.expectedError {
+				mockSender.AssertExpectations(t)
+			}
 		})
 	}
 }
 
 func TestNewMetricService(t *testing.T) {
 	mockRepo := new(MockRepository)
-
-	service := NewMetricService(mockRepo)
+	mockSender := new(MockSender)
+	service := NewMetricService(mockRepo, mockSender)
 
 	assert.NotNil(t, service, "Сервис не должен быть nil")
 	assert.Implements(t, (*MetricUpdater)(nil), service, "Сервис должен реализовывать интерфейс MetricUpdater")

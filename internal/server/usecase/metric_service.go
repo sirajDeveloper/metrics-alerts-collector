@@ -69,6 +69,9 @@ func (s *MetricService) MetricUpdate(req *dto.MetricUpdateRequest) error {
 }
 
 func (s *MetricService) putEvent(metric *model.Metrics) {
+	if s.sender == nil || metric == nil {
+		return
+	}
 	s.sender.Send(event.MetricsEvent{Metrics: metric})
 }
 
