@@ -17,7 +17,6 @@ type MetricUpdater interface {
 type MetricGetter interface {
 	GetMetricValue(req *dto.MetricValueRequest) (*dto.MetricValueResponse, error)
 	GetAllMetricsForDisplay() []dto.DisplayMetricDTO
-	GetAllMetrics() []*model.Metrics
 }
 
 var _ MetricUpdater = (*MetricService)(nil)
@@ -30,10 +29,6 @@ type MetricService struct {
 
 func NewMetricService(repo repository.MetricRepository, sender event.MetricsSender) *MetricService {
 	return &MetricService{repo: repo, sender: sender}
-}
-
-func (s *MetricService) GetAllMetrics() []*model.Metrics {
-	return s.repo.GetAll()
 }
 
 func (s *MetricService) MetricUpdate(req *dto.MetricUpdateRequest) error {
