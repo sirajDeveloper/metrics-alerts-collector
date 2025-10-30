@@ -9,31 +9,31 @@ import (
 )
 
 type MetricsEmitterService struct {
-	repo           repository.MetricFileStorage
-	getter         MetricGetter
+	fStorage       repository.MetricFileStorage
+	mRepo          repository.MetricRepository
 	reportInterval int
 }
 
 var _ event.MetricsSender = (*MetricsEmitterService)(nil)
 
-func NewMetricsEmitterService(repo repository.MetricFileStorage, getter MetricGetter, reportInterval int) *MetricsEmitterService {
+func NewMetricsEmitterService(fStorage repository.MetricFileStorage, mRepo repository.MetricRepository, reportInterval int) *MetricsEmitterService {
 	return &MetricsEmitterService{
-		repo:           repo,
-		getter:         getter,
+		fStorage:       fStorage,
+		mRepo:          mRepo,
 		reportInterval: reportInterval}
 }
 
 func (s *MetricsEmitterService) Send(e event.MetricsEvent) {
 	logger.Log.Info("MetricsEmitterService.Send start")
 	if s.reportInterval == 0 {
-		s.repo.Save(e.Metrics)
+		s.mRepo.Save(e.Metrics)
 	}
 	logger.Log.Info("MetricsEmitterService.Send end")
 }
 
 func (s *MetricsEmitterService) EmitAll() {
 	logger.Log.Info("MetricsEmitterService.EmitAll start")
-	metrics := s.getter.GetAllMetrics()
-	s.repo.SaveAll(metrics)
+	metrics := s.mRepo.GetAll()
+	s.fStorage.SaveAll(metrics)
 	logger.Log.Info("MetricsEmitterService.EmitAll end", zap.Int("count", len(metrics)))
 }

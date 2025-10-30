@@ -34,14 +34,16 @@ func main() {
 	defer cancel()
 
 	fileStorage := file.NewJSONFileStorage(fileStoragePath)
-	emitter := usecase.NewMetricsEmitterService(fileStorage, storeInterval)
-
-	emitStarter := scheduler.NewMetricEmitterScheduler(emitter, storeInterval, restore)
-
-	emitStarter.Start(ctx)
 
 	metricRepo := cache.NewMemStorage()
+
+	emitter := usecase.NewMetricsEmitterService(fileStorage, metricRepo, storeInterval)
+
 	metricService := usecase.NewMetricService(metricRepo, emitter)
+
+	emitStarter := scheduler.NewMetricEmitterScheduler(emitter, storeInterval, restore)
+	emitStarter.Start(ctx)
+
 	chiRouter := router.NewChiRouter(metricService, metricService)
 
 	server := &http.Server{
