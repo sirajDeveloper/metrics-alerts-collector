@@ -28,9 +28,9 @@ func (s *MetricsEmitterService) Send(e event.MetricsEvent) {
 	logger.Log.Info("MetricsEmitterService.Send end")
 }
 
-func (m *MetricsEmitterService) EmitAll() {
+func (s *MetricsEmitterService) EmitAll() {
 	logger.Log.Info("MetricsEmitterService.EmitAll start")
-	metrics := m.getter.GetAllMetrics()
-	m.repo.SaveAll(metrics)
+	metrics := s.getter.GetAllMetrics()
+	s.repo.SaveAll(metrics)
 	logger.Log.Info("MetricsEmitterService.EmitAll end", zap.Int("count", len(metrics)))
 }
