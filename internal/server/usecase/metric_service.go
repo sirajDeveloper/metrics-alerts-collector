@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/domain/event"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/domain/model"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/domain/repository"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/usecase/dto"
@@ -16,17 +17,23 @@ type MetricUpdater interface {
 type MetricGetter interface {
 	GetMetricValue(req *dto.MetricValueRequest) (*dto.MetricValueResponse, error)
 	GetAllMetricsForDisplay() []dto.DisplayMetricDTO
+	GetAllMetrics() []*model.Metrics
 }
 
 var _ MetricUpdater = (*MetricService)(nil)
 var _ MetricGetter = (*MetricService)(nil)
 
 type MetricService struct {
-	repo repository.MetricRepository
+	repo   repository.MetricRepository
+	sender event.MetricsSender
 }
 
-func NewMetricService(repo repository.MetricRepository) *MetricService {
-	return &MetricService{repo: repo}
+func NewMetricService(repo repository.MetricRepository, sender event.MetricsSender) *MetricService {
+	return &MetricService{repo: repo, sender: sender}
+}
+
+func (s *MetricService) GetAllMetrics() []*model.Metrics {
+	return s.repo.GetAll()
 }
 
 func (s *MetricService) MetricUpdate(req *dto.MetricUpdateRequest) error {
@@ -57,7 +64,12 @@ func (s *MetricService) MetricUpdate(req *dto.MetricUpdateRequest) error {
 		return err
 	}
 	s.repo.Save(metric)
+	s.putEvent(metric)
 	return nil
+}
+
+func (s *MetricService) putEvent(metric *model.Metrics) {
+	s.sender.Send(event.MetricsEvent{Metrics: metric})
 }
 
 func (s *MetricService) GetMetricValue(req *dto.MetricValueRequest) (*dto.MetricValueResponse, error) {

@@ -10,9 +10,15 @@ import (
 )
 
 var address string
+var storeInterval int
+var fileStoragePath string
+var restore bool
 
 func parseConfig() {
 	flag.StringVar(&address, "a", "localhost:8080", "address and port to run server")
+	flag.IntVar(&storeInterval, "i", 300, "store interval seconds (0 = sync)")
+	flag.StringVar(&fileStoragePath, "f", "./metrics.json", "file storage path")
+	flag.BoolVar(&restore, "r", false, "restore saved values on start")
 	flag.Parse()
 	var cfg Config
 	err := env.Parse(&cfg)
@@ -22,8 +28,20 @@ func parseConfig() {
 	if cfg.Address != "" {
 		address = cfg.Address
 	}
+	if cfg.StoreInterval != nil {
+		storeInterval = *cfg.StoreInterval
+	}
+	if cfg.FileStoragePath != "" {
+		fileStoragePath = cfg.FileStoragePath
+	}
+	if cfg.Restore != nil {
+		restore = *cfg.Restore
+	}
 }
 
 type Config struct {
-	Address string `env:"ADDRESS"`
+	Address         string `env:"ADDRESS"`
+	StoreInterval   *int   `env:"STORE_INTERVAL"`
+	FileStoragePath string `env:"FILE_STORAGE_PATH"`
+	Restore         *bool  `env:"RESTORE"`
 }

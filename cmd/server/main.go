@@ -13,7 +13,9 @@ import (
 
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/logger"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/infrastructure/datastorage/cache"
+	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/infrastructure/datastorage/file"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/infrastructure/router"
+	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/infrastructure/scheduler"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/usecase"
 )
 
@@ -28,8 +30,18 @@ func main() {
 		}
 	}()
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	fileStorage := file.NewJSONFileStorage(fileStoragePath)
+	emitter := usecase.NewMetricsEmitterService(fileStorage, storeInterval)
+
+	emitStarter := scheduler.NewMetricEmitterScheduler(emitter, storeInterval, restore)
+
+	emitStarter.Start(ctx)
+
 	metricRepo := cache.NewMemStorage()
-	metricService := usecase.NewMetricService(metricRepo)
+	metricService := usecase.NewMetricService(metricRepo, emitter)
 	chiRouter := router.NewChiRouter(metricService, metricService)
 
 	server := &http.Server{
