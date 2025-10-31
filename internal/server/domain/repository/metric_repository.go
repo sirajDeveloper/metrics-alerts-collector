@@ -13,4 +13,5 @@ type MetricRepository interface {
 type MetricFileStorage interface {
 	SaveAll(metrics []*model.Metrics)
 	Save(metric *model.Metrics)
+	LoadAll() ([]*model.Metrics, error)
 }

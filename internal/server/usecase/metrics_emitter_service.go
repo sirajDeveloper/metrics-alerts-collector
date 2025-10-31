@@ -37,3 +37,17 @@ func (s *MetricsEmitterService) EmitAll() {
 	s.fStorage.SaveAll(metrics)
 	logger.Log.Info("MetricsEmitterService.EmitAll end", zap.Int("count", len(metrics)))
 }
+
+func (s *MetricsEmitterService) RestoreAll() error {
+	logger.Log.Info("MetricsEmitterService.RestoreAll start")
+	metrics, err := s.fStorage.LoadAll()
+	if err != nil {
+		logger.Log.Error("MetricsEmitterService.RestoreAll load error", zap.Error(err))
+		return err
+	}
+	for _, metric := range metrics {
+		s.mRepo.Save(metric)
+	}
+	logger.Log.Info("MetricsEmitterService.RestoreAll end", zap.Int("count", len(metrics)))
+	return nil
+}

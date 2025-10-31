@@ -19,7 +19,10 @@ func NewMetricEmitterScheduler(emitter *usecase.MetricsEmitterService, interval 
 
 func (s *MetricEmitterScheduler) Start(ctx context.Context) {
 	if s.restore {
-		s.emitter.EmitAll()
+		err := s.emitter.RestoreAll()
+		if err != nil {
+			return
+		}
 	}
 	if s.interval <= 0 {
 		return

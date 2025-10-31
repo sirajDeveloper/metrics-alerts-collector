@@ -54,3 +54,27 @@ func (s *JSONFileStorage) Save(metric *model.Metrics) {
 	}
 	logger.Log.Info("file Save done", zap.String("path", s.filePath), zap.Int("bytes", len(jsonData)))
 }
+
+func (s *JSONFileStorage) LoadAll() ([]*model.Metrics, error) {
+	logger.Log.Info("file LoadAll start", zap.String("path", s.filePath))
+	data, err := os.ReadFile(s.filePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			logger.Log.Info("file LoadAll file not found", zap.String("path", s.filePath))
+			return []*model.Metrics{}, nil
+		}
+		logger.Log.Error("file LoadAll read error", zap.Error(err))
+		return nil, err
+	}
+	if len(data) == 0 {
+		logger.Log.Info("file LoadAll file empty", zap.String("path", s.filePath))
+		return []*model.Metrics{}, nil
+	}
+	var metrics []*model.Metrics
+	if err := json.Unmarshal(data, &metrics); err != nil {
+		logger.Log.Error("file LoadAll unmarshal error", zap.Error(err))
+		return nil, err
+	}
+	logger.Log.Info("file LoadAll done", zap.String("path", s.filePath), zap.Int("count", len(metrics)))
+	return metrics, nil
+}
