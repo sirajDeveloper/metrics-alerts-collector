@@ -37,18 +37,28 @@ func (s *JSONFileStorage) SaveAll(metrics []*model.Metrics) {
 
 func (s *JSONFileStorage) Save(metric *model.Metrics) {
 	logger.Log.Info("file Save start", zap.String("path", s.filePath), zap.String("id", metric.ID), zap.String("type", metric.MType))
-	jsonData, err := json.Marshal(metric)
+	metrics, err := s.LoadAll()
+	if err != nil {
+		logger.Log.Error("file Save load error", zap.Error(err))
+		return
+	}
+	found := false
+	for i, m := range metrics {
+		if m.ID == metric.ID && m.MType == metric.MType {
+			metrics[i] = metric
+			found = true
+			break
+		}
+	}
+	if !found {
+		metrics = append(metrics, metric)
+	}
+	jsonData, err := json.Marshal(metrics)
 	if err != nil {
 		logger.Log.Error("file Save marshal error", zap.Error(err))
 		return
 	}
-	f, err := os.OpenFile(s.filePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
-	if err != nil {
-		logger.Log.Error("file Save open error", zap.Error(err))
-		return
-	}
-	defer f.Close()
-	if _, err := f.Write(append(jsonData, '\n')); err != nil {
+	if err := os.WriteFile(s.filePath, jsonData, 0644); err != nil {
 		logger.Log.Error("file Save write error", zap.Error(err))
 		return
 	}

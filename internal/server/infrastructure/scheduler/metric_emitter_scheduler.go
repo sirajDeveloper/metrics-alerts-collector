@@ -40,3 +40,7 @@ func (s *MetricEmitterScheduler) Start(ctx context.Context) {
 		}
 	}()
 }
+
+func (s *MetricEmitterScheduler) Shutdown() {
+	s.emitter.EmitAll()
+}

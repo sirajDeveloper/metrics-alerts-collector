@@ -4,44 +4,46 @@ import (
 	"flag"
 
 	"github.com/caarlos0/env/v6"
-	"go.uber.org/zap"
-
-	"github.com/sirajDeveloper/metrics-alerts-collector/internal/logger"
 )
 
-var address string
-var storeInterval int
-var fileStoragePath string
-var restore bool
+func parseConfig() (*Config, error) {
+	var flagAddress string
+	var flagStoreInterval int
+	var flagFileStoragePath string
+	var flagRestore bool
 
-func parseConfig() {
-	flag.StringVar(&address, "a", "localhost:8080", "address and port to run server")
-	flag.IntVar(&storeInterval, "i", 300, "store interval seconds (0 = sync)")
-	flag.StringVar(&fileStoragePath, "f", "./metrics.json", "file storage path")
-	flag.BoolVar(&restore, "r", false, "restore saved values on start")
+	flag.StringVar(&flagAddress, "a", "localhost:8080", "address and port to run server")
+	flag.IntVar(&flagStoreInterval, "i", 300, "store interval seconds (0 = sync)")
+	flag.StringVar(&flagFileStoragePath, "f", "./metrics.json", "file storage path")
+	flag.BoolVar(&flagRestore, "r", true, "restore saved values on start")
 	flag.Parse()
-	var cfg Config
-	err := env.Parse(&cfg)
+
+	cfg := &Config{}
+
+	err := env.Parse(cfg)
 	if err != nil {
-		logger.Log.Fatal("Failed to parse config", zap.String("error", err.Error()))
+		return nil, err
 	}
-	if cfg.Address != "" {
-		address = cfg.Address
+
+	if cfg.Address == nil {
+		cfg.Address = &flagAddress
 	}
-	if cfg.StoreInterval != nil {
-		storeInterval = *cfg.StoreInterval
+	if cfg.StoreInterval == nil {
+		cfg.StoreInterval = &flagStoreInterval
 	}
-	if cfg.FileStoragePath != "" {
-		fileStoragePath = cfg.FileStoragePath
+	if cfg.FileStoragePath == nil {
+		cfg.FileStoragePath = &flagFileStoragePath
 	}
-	if cfg.Restore != nil {
-		restore = *cfg.Restore
+	if cfg.Restore == nil {
+		cfg.Restore = &flagRestore
 	}
+
+	return cfg, nil
 }
 
 type Config struct {
-	Address         string `env:"ADDRESS"`
-	StoreInterval   *int   `env:"STORE_INTERVAL"`
-	FileStoragePath string `env:"FILE_STORAGE_PATH"`
-	Restore         *bool  `env:"RESTORE"`
+	Address         *string `env:"ADDRESS"`
+	StoreInterval   *int    `env:"STORE_INTERVAL"`
+	FileStoragePath *string `env:"FILE_STORAGE_PATH"`
+	Restore         *bool   `env:"RESTORE"`
 }
