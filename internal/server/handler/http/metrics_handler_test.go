@@ -1,149 +1,72 @@
 package http
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"strings"
 	"testing"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/sirajDeveloper/metrics-alerts-collector/internal/logger"
+	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/domain/model"
+	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/usecase"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/usecase/dto"
 )
 
-type mockMetricUpdater struct {
-	updateFunc           func(metricType, metricName, metricValue string) error
-	getFunc              func(metricType, metricName string) (string, error)
-	getAllForDisplayFunc func() []dto.MetricDTO
+func TestMain(m *testing.M) {
+	logger.InitLogger(true)
+	defer func() {
+		err := logger.Sync()
+		if err != nil {
+			logger.Log.Error("Error while logger.Sync")
+		}
+	}()
+
+	os.Exit(m.Run())
 }
 
-func (m *mockMetricUpdater) MetricUpdate(metricType, metricName, metricValue string) error {
+type mockMetricUpdater struct {
+	updateFunc           func(req *dto.MetricUpdateRequest) error
+	getFunc              func(req *dto.MetricValueRequest) (*dto.MetricValueResponse, error)
+	getAllForDisplayFunc func() []dto.DisplayMetricDTO
+	getAllMetricsFunc    func() []*model.Metrics
+}
+
+var _ usecase.MetricGetter = (*mockMetricUpdater)(nil)
+
+func (m *mockMetricUpdater) MetricUpdate(req *dto.MetricUpdateRequest) error {
 	if m.updateFunc != nil {
-		return m.updateFunc(metricType, metricName, metricValue)
+		return m.updateFunc(req)
 	}
 	return nil
 }
 
-func (m *mockMetricUpdater) GetMetricValue(metricType, metricName string) (string, error) {
-	if m.getFunc != nil {
-		return m.getFunc(metricType, metricName)
+func (m *mockMetricUpdater) GetAllMetrics() []*model.Metrics {
+	if m.getAllMetricsFunc != nil {
+		return m.getAllMetricsFunc()
 	}
-	return "", nil
+	return nil
 }
 
-func (m *mockMetricUpdater) GetAllMetricsForDisplay() []dto.MetricDTO {
+func (m *mockMetricUpdater) GetMetricValue(req *dto.MetricValueRequest) (*dto.MetricValueResponse, error) {
+	if m.getFunc != nil {
+		return m.getFunc(req)
+	}
+	return &dto.MetricValueResponse{}, nil
+}
+
+func (m *mockMetricUpdater) GetAllMetricsForDisplay() []dto.DisplayMetricDTO {
 	if m.getAllForDisplayFunc != nil {
 		return m.getAllForDisplayFunc()
 	}
 	return nil
 }
 
-func TestCounterHandler_UpdateCounter_Success(t *testing.T) {
-	mock := &mockMetricUpdater{
-		updateFunc: func(metricType, metricName, metricValue string) error {
-			if metricType != "counter" {
-				t.Errorf("expected metricType 'counter', got '%s'", metricType)
-			}
-			if metricName != "testCounter" {
-				t.Errorf("expected metricName 'testCounter', got '%s'", metricName)
-			}
-			if metricValue != "100" {
-				t.Errorf("expected metricValue '100', got '%s'", metricValue)
-			}
-			return nil
-		},
-	}
-
-	handler := NewMetricsHandler(mock, mock)
-
-	r := chi.NewRouter()
-	r.Post("/update/counter/{name}/{value}", handler.UpdateCounter)
-
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, "/update/counter/testCounter/100", nil)
-
-	r.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("expected status %d, got %d", http.StatusOK, w.Code)
-	}
-}
-
-func TestCounterHandler_UpdateCounter_MethodNotAllowed(t *testing.T) {
-	mock := &mockMetricUpdater{}
-	handler := NewMetricsHandler(mock, mock)
-
-	router := chi.NewRouter()
-	router.Post("/update/counter/{name}/{value}", handler.UpdateCounter)
-
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/update/counter/testCounter/100", nil)
-
-	router.ServeHTTP(w, req)
-
-	if w.Code != http.StatusMethodNotAllowed {
-		t.Errorf("expected status %d, got %d", http.StatusMethodNotAllowed, w.Code)
-	}
-}
-
-func TestCounterHandler_UpdateCounter_EmptyMetricName(t *testing.T) {
-	mock := &mockMetricUpdater{}
-	handler := NewMetricsHandler(mock, mock)
-
-	router := chi.NewRouter()
-	router.Post("/update/counter/{name}/{value}", handler.UpdateCounter)
-
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, "/update/counter//100", nil)
-
-	router.ServeHTTP(w, req)
-
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("expected status %d, got %d", http.StatusBadRequest, w.Code)
-	}
-}
-
-func TestCounterHandler_UpdateCounter_EmptyMetricValue(t *testing.T) {
-	mock := &mockMetricUpdater{}
-	handler := NewMetricsHandler(mock, mock)
-
-	router := chi.NewRouter()
-	router.Post("/update/counter/{name}/{value}", handler.UpdateCounter)
-
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, "/update/counter/testCounter/", nil)
-
-	router.ServeHTTP(w, req)
-
-	if w.Code != http.StatusNotFound {
-		t.Errorf("expected status %d, got %d", http.StatusNotFound, w.Code)
-	}
-}
-
-func TestCounterHandler_UpdateCounter_UpdaterError(t *testing.T) {
-	expectedError := errors.New("invalid counter value")
-
-	mock := &mockMetricUpdater{
-		updateFunc: func(metricType, metricName, metricValue string) error {
-			return expectedError
-		},
-	}
-
-	handler := NewMetricsHandler(mock, mock)
-
-	router := chi.NewRouter()
-	router.Post("/update/counter/{name}/{value}", handler.UpdateCounter)
-
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, "/update/counter/testCounter/invalid", nil)
-
-	router.ServeHTTP(w, req)
-
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("expected status %d, got %d", http.StatusBadRequest, w.Code)
-	}
-}
-
-func TestNewCounterHandler(t *testing.T) {
+func TestNewMetricsHandler(t *testing.T) {
 	mock := &mockMetricUpdater{}
 	handler := NewMetricsHandler(mock, mock)
 
@@ -157,132 +80,38 @@ func TestNewCounterHandler(t *testing.T) {
 	}
 }
 
-func TestGaugeHandler_UpdateGauge_Success(t *testing.T) {
-	mock := &mockMetricUpdater{
-		updateFunc: func(metricType, metricName, metricValue string) error {
-			if metricType != "gauge" {
-				t.Errorf("expected metricType 'gauge', got '%s'", metricType)
-			}
-			if metricName != "testGauge" {
-				t.Errorf("expected metricName 'testGauge', got '%s'", metricName)
-			}
-			if metricValue != "123.45" {
-				t.Errorf("expected metricValue '123.45', got '%s'", metricValue)
-			}
-			return nil
-		},
-	}
-
-	handler := NewMetricsHandler(mock, mock)
-
-	router := chi.NewRouter()
-	router.Post("/update/gauge/{name}/{value}", handler.UpdateGauge)
-
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, "/update/gauge/testGauge/123.45", nil)
-
-	router.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("expected status %d, got %d", http.StatusOK, w.Code)
-	}
-}
-
-func TestGaugeHandler_UpdateGauge_MethodNotAllowed(t *testing.T) {
-	mock := &mockMetricUpdater{}
-	handler := NewMetricsHandler(mock, mock)
-
-	router := chi.NewRouter()
-	router.Post("/update/gauge/{name}/{value}", handler.UpdateGauge)
-
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/update/gauge/testGauge/123.45", nil)
-
-	router.ServeHTTP(w, req)
-
-	if w.Code != http.StatusMethodNotAllowed {
-		t.Errorf("expected status %d, got %d", http.StatusMethodNotAllowed, w.Code)
-	}
-}
-
-func TestGaugeHandler_UpdateGauge_EmptyMetricName(t *testing.T) {
-	mock := &mockMetricUpdater{}
-	handler := NewMetricsHandler(mock, mock)
-
-	router := chi.NewRouter()
-	router.Post("/update/gauge/{name}/{value}", handler.UpdateGauge)
-
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, "/update/gauge//123.45", nil)
-
-	router.ServeHTTP(w, req)
-
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("expected status %d, got %d", http.StatusBadRequest, w.Code)
-	}
-}
-
-func TestGaugeHandler_UpdateGauge_EmptyMetricValue(t *testing.T) {
-	mock := &mockMetricUpdater{}
-	handler := NewMetricsHandler(mock, mock)
-
-	router := chi.NewRouter()
-	router.Post("/update/gauge/{name}/{value}", handler.UpdateGauge)
-
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, "/update/gauge/testGauge/", nil)
-
-	router.ServeHTTP(w, req)
-
-	if w.Code != http.StatusNotFound {
-		t.Errorf("expected status %d, got %d", http.StatusNotFound, w.Code)
-	}
-}
-
-func TestGaugeHandler_UpdateGauge_UpdaterError(t *testing.T) {
-	expectedError := errors.New("invalid gauge value")
-
-	mock := &mockMetricUpdater{
-		updateFunc: func(metricType, metricName, metricValue string) error {
-			return expectedError
-		},
-	}
-
-	handler := NewMetricsHandler(mock, mock)
-
-	router := chi.NewRouter()
-	router.Post("/update/gauge/{name}/{value}", handler.UpdateGauge)
-
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, "/update/gauge/testGauge/invalid", nil)
-
-	router.ServeHTTP(w, req)
-
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("expected status %d, got %d", http.StatusBadRequest, w.Code)
-	}
-}
-
 func TestGetMetricValue_Success_Counter(t *testing.T) {
 	mock := &mockMetricUpdater{
-		getFunc: func(metricType, metricName string) (string, error) {
-			if metricType != "counter" {
-				t.Errorf("expected metricType 'counter', got '%s'", metricType)
+		getFunc: func(req *dto.MetricValueRequest) (*dto.MetricValueResponse, error) {
+			if req.MType != "counter" {
+				t.Errorf("expected metricType 'counter', got '%s'", req.MType)
 			}
-			if metricName != "testCounter" {
-				t.Errorf("expected metricName 'testCounter', got '%s'", metricName)
+			if req.ID != "testCounter" {
+				t.Errorf("expected metricName 'testCounter', got '%s'", req.ID)
 			}
-			return "100", nil
+			delta := int64(100)
+			return &dto.MetricValueResponse{
+				ID:    "testCounter",
+				MType: "counter",
+				Delta: &delta,
+			}, nil
 		},
 	}
 
 	handler := NewMetricsHandler(mock, mock)
 
+	requestBody := dto.MetricValueRequest{
+		ID:    "testCounter",
+		MType: "counter",
+	}
+	jsonBody, _ := json.Marshal(requestBody)
+
 	router := chi.NewRouter()
-	router.Get("/value/{type}/{name}", handler.GetMetricValue)
+	router.Post("/value", handler.GetMetricValue)
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/value/counter/testCounter", nil)
+	req := httptest.NewRequest(http.MethodPost, "/value", bytes.NewBuffer(jsonBody))
+	req.Header.Set("Content-Type", "application/json")
 
 	router.ServeHTTP(w, req)
 
@@ -290,35 +119,58 @@ func TestGetMetricValue_Success_Counter(t *testing.T) {
 		t.Errorf("expected status %d, got %d", http.StatusOK, w.Code)
 	}
 
-	if w.Body.String() != "100" {
-		t.Errorf("expected body '100', got '%s'", w.Body.String())
+	if w.Header().Get("Content-Type") != "application/json" {
+		t.Errorf("expected Content-Type 'application/json', got '%s'", w.Header().Get("Content-Type"))
 	}
 
-	if w.Header().Get("Content-Type") != "text/plain" {
-		t.Errorf("expected Content-Type 'text/plain', got '%s'", w.Header().Get("Content-Type"))
+	var response dto.MetricValueResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Errorf("failed to unmarshal response: %v", err)
+	}
+
+	if response.ID != "testCounter" {
+		t.Errorf("expected ID 'testCounter', got '%s'", response.ID)
+	}
+	if response.MType != "counter" {
+		t.Errorf("expected MType 'counter', got '%s'", response.MType)
+	}
+	if response.Delta == nil || *response.Delta != 100 {
+		t.Errorf("expected Delta 100, got '%v'", response.Delta)
 	}
 }
 
 func TestGetMetricValue_Success_Gauge(t *testing.T) {
 	mock := &mockMetricUpdater{
-		getFunc: func(metricType, metricName string) (string, error) {
-			if metricType != "gauge" {
-				t.Errorf("expected metricType 'gauge', got '%s'", metricType)
+		getFunc: func(req *dto.MetricValueRequest) (*dto.MetricValueResponse, error) {
+			if req.MType != "gauge" {
+				t.Errorf("expected metricType 'gauge', got '%s'", req.MType)
 			}
-			if metricName != "testGauge" {
-				t.Errorf("expected metricName 'testGauge', got '%s'", metricName)
+			if req.ID != "testGauge" {
+				t.Errorf("expected metricName 'testGauge', got '%s'", req.ID)
 			}
-			return "123.45", nil
+			value := 123.45
+			return &dto.MetricValueResponse{
+				ID:    "testGauge",
+				MType: "gauge",
+				Value: &value,
+			}, nil
 		},
 	}
 
 	handler := NewMetricsHandler(mock, mock)
 
+	requestBody := dto.MetricValueRequest{
+		ID:    "testGauge",
+		MType: "gauge",
+	}
+	jsonBody, _ := json.Marshal(requestBody)
+
 	router := chi.NewRouter()
-	router.Get("/value/{type}/{name}", handler.GetMetricValue)
+	router.Post("/value", handler.GetMetricValue)
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/value/gauge/testGauge", nil)
+	req := httptest.NewRequest(http.MethodPost, "/value", bytes.NewBuffer(jsonBody))
+	req.Header.Set("Content-Type", "application/json")
 
 	router.ServeHTTP(w, req)
 
@@ -326,25 +178,43 @@ func TestGetMetricValue_Success_Gauge(t *testing.T) {
 		t.Errorf("expected status %d, got %d", http.StatusOK, w.Code)
 	}
 
-	if w.Body.String() != "123.45" {
-		t.Errorf("expected body '123.45', got '%s'", w.Body.String())
+	var response dto.MetricValueResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Errorf("failed to unmarshal response: %v", err)
+	}
+
+	if response.ID != "testGauge" {
+		t.Errorf("expected ID 'testGauge', got '%s'", response.ID)
+	}
+	if response.MType != "gauge" {
+		t.Errorf("expected MType 'gauge', got '%s'", response.MType)
+	}
+	if response.Value == nil || *response.Value != 123.45 {
+		t.Errorf("expected Value 123.45, got '%v'", response.Value)
 	}
 }
 
 func TestGetMetricValue_NotFound(t *testing.T) {
 	mock := &mockMetricUpdater{
-		getFunc: func(metricType, metricName string) (string, error) {
-			return "", errors.New("metric not found")
+		getFunc: func(req *dto.MetricValueRequest) (*dto.MetricValueResponse, error) {
+			return nil, errors.New("metric not found")
 		},
 	}
 
 	handler := NewMetricsHandler(mock, mock)
 
+	requestBody := dto.MetricValueRequest{
+		ID:    "unknown",
+		MType: "counter",
+	}
+	jsonBody, _ := json.Marshal(requestBody)
+
 	router := chi.NewRouter()
-	router.Get("/value/{type}/{name}", handler.GetMetricValue)
+	router.Post("/value", handler.GetMetricValue)
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/value/counter/unknown", nil)
+	req := httptest.NewRequest(http.MethodPost, "/value", bytes.NewBuffer(jsonBody))
+	req.Header.Set("Content-Type", "application/json")
 
 	router.ServeHTTP(w, req)
 
@@ -355,8 +225,8 @@ func TestGetMetricValue_NotFound(t *testing.T) {
 
 func TestGetAllMetrics_Success(t *testing.T) {
 	mock := &mockMetricUpdater{
-		getAllForDisplayFunc: func() []dto.MetricDTO {
-			return []dto.MetricDTO{
+		getAllForDisplayFunc: func() []dto.DisplayMetricDTO {
+			return []dto.DisplayMetricDTO{
 				{ID: "testGauge", MType: "gauge", ValueStr: "123.45"},
 				{ID: "testCounter", MType: "counter", ValueStr: "100"},
 			}
@@ -385,12 +255,19 @@ func TestGetAllMetrics_Success(t *testing.T) {
 	if len(body) == 0 {
 		t.Error("expected non-empty response body")
 	}
+
+	if !strings.Contains(body, "testGauge") {
+		t.Error("expected body to contain 'testGauge'")
+	}
+	if !strings.Contains(body, "testCounter") {
+		t.Error("expected body to contain 'testCounter'")
+	}
 }
 
 func TestGetAllMetrics_Empty(t *testing.T) {
 	mock := &mockMetricUpdater{
-		getAllForDisplayFunc: func() []dto.MetricDTO {
-			return []dto.MetricDTO{}
+		getAllForDisplayFunc: func() []dto.DisplayMetricDTO {
+			return []dto.DisplayMetricDTO{}
 		},
 	}
 
@@ -413,11 +290,18 @@ func TestUpdateMetric_UnknownType(t *testing.T) {
 	mock := &mockMetricUpdater{}
 	handler := NewMetricsHandler(mock, mock)
 
+	requestBody := dto.MetricUpdateRequest{
+		ID:    "testMetric",
+		MType: "unknown",
+	}
+	jsonBody, _ := json.Marshal(requestBody)
+
 	router := chi.NewRouter()
-	router.Post("/update/{type}/{name}/{value}", handler.UpdateMetric)
+	router.Post("/update", handler.UpdateMetric)
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, "/update/unknown/testMetric/100", nil)
+	req := httptest.NewRequest(http.MethodPost, "/update", bytes.NewBuffer(jsonBody))
+	req.Header.Set("Content-Type", "application/json")
 
 	router.ServeHTTP(w, req)
 
@@ -428,9 +312,9 @@ func TestUpdateMetric_UnknownType(t *testing.T) {
 
 func TestUpdateMetric_Counter_Success(t *testing.T) {
 	mock := &mockMetricUpdater{
-		updateFunc: func(metricType, metricName, metricValue string) error {
-			if metricType != "counter" {
-				t.Errorf("expected metricType 'counter', got '%s'", metricType)
+		updateFunc: func(req *dto.MetricUpdateRequest) error {
+			if req.MType != "counter" {
+				t.Errorf("expected metricType 'counter', got '%s'", req.MType)
 			}
 			return nil
 		},
@@ -438,11 +322,20 @@ func TestUpdateMetric_Counter_Success(t *testing.T) {
 
 	handler := NewMetricsHandler(mock, mock)
 
+	delta := int64(100)
+	requestBody := dto.MetricUpdateRequest{
+		ID:    "test",
+		MType: "counter",
+		Delta: &delta,
+	}
+	jsonBody, _ := json.Marshal(requestBody)
+
 	router := chi.NewRouter()
-	router.Post("/update/{type}/{name}/{value}", handler.UpdateMetric)
+	router.Post("/update", handler.UpdateMetric)
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, "/update/counter/test/100", nil)
+	req := httptest.NewRequest(http.MethodPost, "/update", bytes.NewBuffer(jsonBody))
+	req.Header.Set("Content-Type", "application/json")
 
 	router.ServeHTTP(w, req)
 
@@ -453,9 +346,9 @@ func TestUpdateMetric_Counter_Success(t *testing.T) {
 
 func TestUpdateMetric_Gauge_Success(t *testing.T) {
 	mock := &mockMetricUpdater{
-		updateFunc: func(metricType, metricName, metricValue string) error {
-			if metricType != "gauge" {
-				t.Errorf("expected metricType 'gauge', got '%s'", metricType)
+		updateFunc: func(req *dto.MetricUpdateRequest) error {
+			if req.MType != "gauge" {
+				t.Errorf("expected metricType 'gauge', got '%s'", req.MType)
 			}
 			return nil
 		},
@@ -463,11 +356,20 @@ func TestUpdateMetric_Gauge_Success(t *testing.T) {
 
 	handler := NewMetricsHandler(mock, mock)
 
+	value := 123.45
+	requestBody := dto.MetricUpdateRequest{
+		ID:    "test",
+		MType: "gauge",
+		Value: &value,
+	}
+	jsonBody, _ := json.Marshal(requestBody)
+
 	router := chi.NewRouter()
-	router.Post("/update/{type}/{name}/{value}", handler.UpdateMetric)
+	router.Post("/update", handler.UpdateMetric)
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, "/update/gauge/test/123.45", nil)
+	req := httptest.NewRequest(http.MethodPost, "/update", bytes.NewBuffer(jsonBody))
+	req.Header.Set("Content-Type", "application/json")
 
 	router.ServeHTTP(w, req)
 

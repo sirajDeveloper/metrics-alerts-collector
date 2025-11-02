@@ -6,6 +6,12 @@ import (
 
 type MetricRepository interface {
 	Save(metrics *model.Metrics)
-	GetMetric(metricType, metricName string) *model.Metrics
 	GetAll() []*model.Metrics
+	GetMetric(mType, name string) *model.Metrics
+}
+
+type MetricFileStorage interface {
+	SaveAll(metrics []*model.Metrics)
+	Save(metric *model.Metrics)
+	LoadAll() ([]*model.Metrics, error)
 }

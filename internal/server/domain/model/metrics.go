@@ -27,7 +27,7 @@ func CreateMetric(id, mType string) *Metrics {
 	}
 }
 
-func (m *Metrics) UpdateMetric(newValue string) error {
+func (m *Metrics) UpdateMetric(newValue any) error {
 	switch m.MType {
 	case string(Gauge):
 		return m.updateGauge(newValue)
@@ -38,21 +38,50 @@ func (m *Metrics) UpdateMetric(newValue string) error {
 	}
 }
 
-func (m *Metrics) updateGauge(val string) error {
-	v, err := strconv.ParseFloat(val, 64)
-	if err != nil {
-		return errors.New("updateGauge: invalid float64 value")
+func (m *Metrics) updateGauge(val any) error {
+	var floatVal float64
+	switch v := val.(type) {
+	case float64:
+		floatVal = v
+	case float32:
+		floatVal = float64(v)
+	case int64:
+		floatVal = float64(v)
+	case int:
+		floatVal = float64(v)
+	case string:
+		parsed, err := strconv.ParseFloat(v, 64)
+		if err != nil {
+			return errors.New("updateGauge: invalid float64 value")
+		}
+		floatVal = parsed
+	default:
+		return errors.New("updateGauge: unsupported value type")
 	}
-	m.Value = &v
+	m.Value = &floatVal
 	return nil
 }
 
-func (m *Metrics) updateCounter(val string) error {
-	v, err := strconv.ParseInt(val, 10, 64)
-	if err != nil {
-		return errors.New("updateCounter: invalid int64 value")
+func (m *Metrics) updateCounter(val any) error {
+	var intVal int64
+	switch v := val.(type) {
+	case int64:
+		intVal = v
+	case int:
+		intVal = int64(v)
+	case float64:
+		intVal = int64(v)
+	case string:
+		parsed, err := strconv.ParseInt(v, 10, 64)
+		if err != nil {
+			return errors.New("updateCounter: invalid int64 value")
+		}
+		intVal = parsed
+	default:
+		return errors.New("updateCounter: unsupported value type")
 	}
-	total := v
+
+	total := intVal
 	if m.Delta != nil {
 		total += *m.Delta
 	}

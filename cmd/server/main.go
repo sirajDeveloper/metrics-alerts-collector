@@ -3,36 +3,61 @@ package main
 import (
 	"context"
 	"errors"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	"go.uber.org/zap"
+
+	"github.com/sirajDeveloper/metrics-alerts-collector/internal/logger"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/infrastructure/datastorage/cache"
+	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/infrastructure/datastorage/file"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/infrastructure/router"
+	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/infrastructure/scheduler"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/usecase"
 )
 
-type Environments struct {
-}
-
 func main() {
-	parseFlags()
+	cfg, err := parseConfig()
+	if err != nil {
+		logger.Log.Fatal("Failed to parse config", zap.String("error", err.Error()))
+	}
+
+	logger.InitLogger(false)
+	defer func() {
+		err := logger.Sync()
+		if err != nil {
+			logger.Log.Info("Failed to sync logs")
+		}
+	}()
+
+	fileStorage := file.NewJSONFileStorage(*cfg.FileStoragePath)
+
 	metricRepo := cache.NewMemStorage()
-	metricService := usecase.NewMetricService(metricRepo)
+
+	emitter := usecase.NewMetricsEmitterService(fileStorage, metricRepo, *cfg.StoreInterval)
+
+	metricService := usecase.NewMetricService(metricRepo, emitter)
+
+	emitStarter := scheduler.NewMetricEmitterScheduler(emitter, *cfg.StoreInterval, *cfg.Restore)
+
+	schedCtx, schedCancel := context.WithCancel(context.Background())
+	defer schedCancel()
+	emitStarter.Start(schedCtx)
+
 	chiRouter := router.NewChiRouter(metricService, metricService)
 
 	server := &http.Server{
-		Addr:    address,
+		Addr:    *cfg.Address,
 		Handler: chiRouter.Handler(),
 	}
 
 	go func() {
-		log.Println("Server starting on http://" + address)
+		logger.Log.Info("Server starting on http://" + *cfg.Address)
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Fatal("Server failed to start:", err)
+			logger.Log.Fatal("Server failed to start", zap.String("error", err.Error()))
 		}
 	}()
 
@@ -41,13 +66,13 @@ func main() {
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
 	<-sigChan
-	log.Println("Shutting down gracefully...")
+	logger.Log.Info("Shutting down gracefully...")
+	emitStarter.Shutdown()
 
-	ctxt, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctxt, cancelShutdown := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancelShutdown()
 	if err := server.Shutdown(ctxt); err != nil {
-		log.Fatal()
+		logger.Log.Fatal("Server shutdown failed", zap.String("error", err.Error()))
 	}
-	time.Sleep(100 * time.Millisecond)
-	log.Println("Server stopped")
+	logger.Log.Info("Server stopped")
 }

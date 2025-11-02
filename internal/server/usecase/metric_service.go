@@ -4,57 +4,105 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/domain/event"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/domain/model"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/domain/repository"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/usecase/dto"
 )
 
 type MetricUpdater interface {
-	MetricUpdate(metricType string, metricName string, metricValue string) error
+	MetricUpdate(req *dto.MetricUpdateRequest) error
 }
 
 type MetricGetter interface {
-	GetMetricValue(metricType, metricName string) (string, error)
-	GetAllMetricsForDisplay() []dto.MetricDTO
+	GetMetricValue(req *dto.MetricValueRequest) (*dto.MetricValueResponse, error)
+	GetAllMetricsForDisplay() []dto.DisplayMetricDTO
 }
 
 var _ MetricUpdater = (*MetricService)(nil)
 var _ MetricGetter = (*MetricService)(nil)
 
 type MetricService struct {
-	repo repository.MetricRepository
+	repo   repository.MetricRepository
+	sender event.MetricsSender
 }
 
-func NewMetricService(repo repository.MetricRepository) *MetricService {
-	return &MetricService{repo: repo}
+func NewMetricService(repo repository.MetricRepository, sender event.MetricsSender) *MetricService {
+	return &MetricService{repo: repo, sender: sender}
 }
 
-func (s *MetricService) MetricUpdate(metricType string, metricName string, metricValue string) error {
-	metric := s.repo.GetMetric(metricType, metricName)
+func (s *MetricService) MetricUpdate(req *dto.MetricUpdateRequest) error {
+	metric := s.repo.GetMetric(req.MType, req.ID)
 	if metric == nil {
-		metric = model.CreateMetric(metricName, metricType)
+		metric = model.CreateMetric(req.ID, req.MType)
 	}
 
-	if err := metric.UpdateMetric(metricValue); err != nil {
+	var value any
+	switch req.MType {
+	case "gauge":
+		if req.Value != nil {
+			value = *req.Value
+		} else {
+			return fmt.Errorf("gauge value is required")
+		}
+	case "counter":
+		if req.Delta != nil {
+			value = *req.Delta
+		} else {
+			return fmt.Errorf("counter delta is required")
+		}
+	default:
+		return fmt.Errorf("unknown metric type: %s", req.MType)
+	}
+
+	if err := metric.UpdateMetric(value); err != nil {
 		return err
 	}
 	s.repo.Save(metric)
+	s.putEvent(metric)
 	return nil
 }
 
-func (s *MetricService) GetMetricValue(metricType, metricName string) (string, error) {
-	metric := s.repo.GetMetric(metricType, metricName)
-	if metric == nil {
-		return "", fmt.Errorf("metric not found")
+func (s *MetricService) putEvent(metric *model.Metrics) {
+	if s.sender == nil || metric == nil {
+		return
 	}
-
-	return formatMetricValue(metric, metricType)
+	s.sender.Send(event.MetricsEvent{Metrics: metric})
 }
 
-func (s *MetricService) GetAllMetricsForDisplay() []dto.MetricDTO {
+func (s *MetricService) GetMetricValue(req *dto.MetricValueRequest) (*dto.MetricValueResponse, error) {
+	metric := s.repo.GetMetric(req.MType, req.ID)
+	resp := dto.MetricValueResponse{
+		ID:    "",
+		MType: "",
+		Delta: nil,
+		Value: nil,
+	}
+	if metric == nil {
+		return &resp, fmt.Errorf("metric not found")
+	}
+
+	resp.ID = metric.ID
+	resp.MType = metric.MType
+
+	switch metric.MType {
+	case "gauge":
+		if metric.Value != nil {
+			resp.Value = metric.Value
+		}
+	case "counter":
+		if metric.Delta != nil {
+			resp.Delta = metric.Delta
+		}
+	}
+
+	return &resp, nil
+}
+
+func (s *MetricService) GetAllMetricsForDisplay() []dto.DisplayMetricDTO {
 	metrics := s.repo.GetAll()
 
-	displayMetrics := make([]dto.MetricDTO, 0, len(metrics))
+	displayMetrics := make([]dto.DisplayMetricDTO, 0, len(metrics))
 	for _, m := range metrics {
 		var valueStr string
 		switch m.MType {
@@ -68,7 +116,7 @@ func (s *MetricService) GetAllMetricsForDisplay() []dto.MetricDTO {
 			}
 		}
 
-		displayMetrics = append(displayMetrics, dto.MetricDTO{
+		displayMetrics = append(displayMetrics, dto.DisplayMetricDTO{
 			ID:       m.ID,
 			MType:    m.MType,
 			ValueStr: valueStr,
@@ -76,19 +124,4 @@ func (s *MetricService) GetAllMetricsForDisplay() []dto.MetricDTO {
 	}
 
 	return displayMetrics
-}
-
-func formatMetricValue(metric *model.Metrics, metricType string) (string, error) {
-	switch metricType {
-	case "gauge":
-		if metric.Value != nil {
-			return strconv.FormatFloat(*metric.Value, 'f', -1, 64), nil
-		}
-	case "counter":
-		if metric.Delta != nil {
-			return strconv.FormatInt(*metric.Delta, 10), nil
-		}
-	}
-
-	return "", fmt.Errorf("metric value is nil")
 }
