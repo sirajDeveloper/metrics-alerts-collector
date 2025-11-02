@@ -26,7 +26,7 @@ func NewMetricsEmitterService(fStorage repository.MetricFileStorage, mRepo repos
 func (s *MetricsEmitterService) Send(e event.MetricsEvent) {
 	logger.Log.Info("MetricsEmitterService.Send start")
 	if s.reportInterval == 0 {
-		s.mRepo.Save(e.Metrics)
+		s.fStorage.Save(e.Metrics)
 	}
 	logger.Log.Info("MetricsEmitterService.Send end")
 }
