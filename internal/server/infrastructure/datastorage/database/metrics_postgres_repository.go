@@ -18,8 +18,8 @@ type MetricsPostgresRepository struct {
 	pool *pgxpool.Pool
 }
 
-type MetricsDb struct {
-	Id    int64
+type MetricsDB struct {
+	ID    int64
 	Name  string
 	Type  string
 	Delta sql.NullInt64
@@ -40,7 +40,7 @@ func (m *MetricsPostgresRepository) GetAll() []*model.Metrics {
 
 	result := make([]*model.Metrics, 0)
 	for rows.Next() {
-		dbMetric := MetricsDb{}
+		dbMetric := MetricsDB{}
 		if err := rows.Scan(&dbMetric.Name, &dbMetric.Type, &dbMetric.Delta, &dbMetric.Value); err != nil {
 			logger.Log.Error("failed to scan metric row", zap.Error(err))
 			continue
@@ -57,7 +57,7 @@ func (m *MetricsPostgresRepository) GetAll() []*model.Metrics {
 
 func (m *MetricsPostgresRepository) GetMetric(mType string, name string) *model.Metrics {
 	row := m.pool.QueryRow(context.Background(), "SELECT name, type, delta, value FROM metrics WHERE type = $1 AND name = $2", mType, name)
-	dbMetric := MetricsDb{}
+	dbMetric := MetricsDB{}
 	if err := row.Scan(&dbMetric.Name, &dbMetric.Type, &dbMetric.Delta, &dbMetric.Value); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil
@@ -74,7 +74,7 @@ func (m *MetricsPostgresRepository) Save(metric *model.Metrics) {
 		return
 	}
 
-	dbMetric := newMetricsDbFromDomain(metric)
+	dbMetric := newMetricsDBFromDomain(metric)
 	ctx := context.Background()
 
 	tag, err := m.updateMetric(ctx, dbMetric)
@@ -93,16 +93,16 @@ func (m *MetricsPostgresRepository) Save(metric *model.Metrics) {
 	}
 }
 
-func (m *MetricsPostgresRepository) updateMetric(ctx context.Context, metric MetricsDb) (pgconn.CommandTag, error) {
+func (m *MetricsPostgresRepository) updateMetric(ctx context.Context, metric MetricsDB) (pgconn.CommandTag, error) {
 	return m.pool.Exec(ctx, "UPDATE metrics SET delta = $3, value = $4 WHERE name = $1 AND type = $2", metric.Name, metric.Type, metric.Delta, metric.Value)
 }
 
-func (m *MetricsPostgresRepository) insertMetric(ctx context.Context, metric MetricsDb) error {
+func (m *MetricsPostgresRepository) insertMetric(ctx context.Context, metric MetricsDB) error {
 	_, err := m.pool.Exec(ctx, "INSERT INTO metrics (name, type, delta, value) VALUES ($1, $2, $3, $4)", metric.Name, metric.Type, metric.Delta, metric.Value)
 	return err
 }
 
-func newMetricsDbFromDomain(metric *model.Metrics) MetricsDb {
+func newMetricsDBFromDomain(metric *model.Metrics) MetricsDB {
 	delta := sql.NullInt64{}
 	if metric.Delta != nil {
 		delta.Int64 = *metric.Delta
@@ -115,7 +115,7 @@ func newMetricsDbFromDomain(metric *model.Metrics) MetricsDb {
 		value.Valid = true
 	}
 
-	return MetricsDb{
+	return MetricsDB{
 		Name:  metric.ID,
 		Type:  metric.MType,
 		Delta: delta,
@@ -123,7 +123,7 @@ func newMetricsDbFromDomain(metric *model.Metrics) MetricsDb {
 	}
 }
 
-func (m MetricsDb) toDomain() *model.Metrics {
+func (m MetricsDB) toDomain() *model.Metrics {
 	metric := model.CreateMetric(m.Name, m.Type)
 	if m.Delta.Valid {
 		value := m.Delta.Int64
