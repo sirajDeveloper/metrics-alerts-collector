@@ -37,39 +37,38 @@ func main() {
 		}
 	}()
 
-	if cfg.DatabaseDSN != nil {
-		migrationRunner, err := database.NewMigrationRunner(*cfg.MigrationsPath, *cfg.DatabaseDSN)
-		if err != nil {
-			logger.Log.Fatal("Failed to initialize migrations", zap.String("error", err.Error()))
-		}
-		if err := migrationRunner.Up(context.Background()); err != nil {
-			logger.Log.Fatal("Failed to apply migrations", zap.String("error", err.Error()))
-		}
-	}
-
 	fileStorage := file.NewJSONFileStorage(*cfg.FileStoragePath)
 
 	var metricRepo repository.MetricRepository = cache.NewMemStorage()
 
 	var healthChecker usecase.DatabaseHealthChecker
 	if cfg.DatabaseDSN != nil {
+		if cfg.MigrationsPath != nil {
+			if migrationRunner, migErr := database.NewMigrationRunner(*cfg.MigrationsPath, *cfg.DatabaseDSN); migErr != nil {
+				logger.Log.Error("Failed to initialize migrations", zap.Error(migErr))
+			} else if migErr = migrationRunner.Up(context.Background()); migErr != nil {
+				logger.Log.Error("Failed to apply migrations", zap.Error(migErr))
+			}
+		}
+
 		dbCtx, cancelDB := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancelDB()
 
 		poolConfig, err := pgxpool.ParseConfig(*cfg.DatabaseDSN)
 		if err != nil {
-			logger.Log.Fatal("Failed to initialize database", zap.String("error", err.Error()))
-		}
+			logger.Log.Error("Failed to parse database config", zap.Error(err))
+		} else {
+			pool, err := pgxpool.NewWithConfig(dbCtx, poolConfig)
+			if err != nil {
+				logger.Log.Error("Failed to initialize database", zap.Error(err))
+			} else {
+				defer pool.Close()
 
-		pool, err := pgxpool.NewWithConfig(dbCtx, poolConfig)
-		if err != nil {
-			logger.Log.Fatal("Failed to initialize database", zap.String("error", err.Error()))
+				mPostgresRepo := database.NewMetricsPostgresRepository(pool)
+				metricRepo = mPostgresRepo
+				healthChecker = database.NewDBhealthCheckImpl(pool)
+			}
 		}
-		defer pool.Close()
-
-		mPostgresRepo := database.NewMetricsPostgresRepository(pool)
-		metricRepo = mPostgresRepo
-		healthChecker = database.NewDBhealthCheckImpl(pool)
 	}
 
 	emitter := usecase.NewMetricsEmitterService(fileStorage, metricRepo, *cfg.StoreInterval)
