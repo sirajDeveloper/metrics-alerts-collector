@@ -44,11 +44,11 @@ func parseConfig() (*Config, error) {
 	if cfg.Restore == nil {
 		cfg.Restore = &flagRestore
 	}
-	if (cfg.DatabaseDSN == nil || *cfg.DatabaseDSN == "") && flagDatabaseDSN != "" {
-		cfg.DatabaseDSN = &flagDatabaseDSN
-	}
-	if cfg.MigrationsPath == nil || *cfg.MigrationsPath == "" {
-		cfg.MigrationsPath = &flagMigrationsPath
+	cfg.DatabaseDSN = optionalString(cfg.DatabaseDSN, flagDatabaseDSN)
+	if cfg.DatabaseDSN != nil {
+		cfg.MigrationsPath = optionalString(cfg.MigrationsPath, flagMigrationsPath)
+	} else {
+		cfg.MigrationsPath = nil
 	}
 
 	return cfg, nil
@@ -61,4 +61,15 @@ type Config struct {
 	Restore         *bool   `env:"RESTORE"`
 	DatabaseDSN     *string `env:"DATABASE_DSN"`
 	MigrationsPath  *string `env:"MIGRATIONS_PATH"`
+}
+
+func optionalString(current *string, fallback string) *string {
+	if current != nil && *current != "" {
+		return current
+	}
+	if fallback == "" {
+		return nil
+	}
+	value := fallback
+	return &value
 }

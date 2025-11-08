@@ -37,12 +37,14 @@ func main() {
 		}
 	}()
 
-	migrationRunner, err := database.NewMigrationRunner(*cfg.MigrationsPath, *cfg.DatabaseDSN)
-	if err != nil {
-		logger.Log.Fatal("Failed to initialize migrations", zap.String("error", err.Error()))
-	}
-	if err := migrationRunner.Up(context.Background()); err != nil {
-		logger.Log.Fatal("Failed to apply migrations", zap.String("error", err.Error()))
+	if cfg.DatabaseDSN != nil {
+		migrationRunner, err := database.NewMigrationRunner(*cfg.MigrationsPath, *cfg.DatabaseDSN)
+		if err != nil {
+			logger.Log.Fatal("Failed to initialize migrations", zap.String("error", err.Error()))
+		}
+		if err := migrationRunner.Up(context.Background()); err != nil {
+			logger.Log.Fatal("Failed to apply migrations", zap.String("error", err.Error()))
+		}
 	}
 
 	fileStorage := file.NewJSONFileStorage(*cfg.FileStoragePath)
@@ -50,7 +52,7 @@ func main() {
 	var metricRepo repository.MetricRepository = cache.NewMemStorage()
 
 	var healthChecker usecase.DatabaseHealthChecker
-	if *cfg.DatabaseDSN != "" {
+	if cfg.DatabaseDSN != nil {
 		dbCtx, cancelDB := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancelDB()
 
