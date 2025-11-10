@@ -68,7 +68,6 @@ func (s *HTTPSender) Send(metric *domain.Metric) {
 	}
 
 	url := s.serverURL + "/update"
-	err = s.sendRequest(url, req)
 	if err := s.sendRequest(url, req); err != nil {
 		logger.Log.Error("batch send failed", zap.String("url", url), zap.Error(err))
 	}
