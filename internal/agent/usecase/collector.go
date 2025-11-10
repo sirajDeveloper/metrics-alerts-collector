@@ -1,7 +1,6 @@
 package usecase
 
 import (
-	"fmt"
 	"math/rand/v2"
 	"runtime"
 	"sync"
@@ -10,15 +9,15 @@ import (
 )
 
 type Collector struct {
-	sender    MetricSender
+	report    MetricsReporter
 	pollCount int64
 	mu        sync.Mutex
 	metrics   map[string]domain.Metric
 }
 
-func NewCollector(sender MetricSender) *Collector {
+func NewCollector(report MetricsReporter) *Collector {
 	return &Collector{
-		sender:  sender,
+		report:  report,
 		metrics: make(map[string]domain.Metric),
 	}
 }
@@ -81,11 +80,13 @@ func (c *Collector) Collect() {
 func (c *Collector) Report() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-
+	metricList := make([]domain.Metric, 0, len(c.metrics))
 	for _, metric := range c.metrics {
-		err := c.sender.Send(metric)
-		if err != nil {
-			fmt.Printf("error sending metric: %v\n", err)
-		}
+		metricList = append(metricList, metric)
 	}
+	c.report.MetricsReport(metricList)
+}
+
+type MetricsReporter interface {
+	MetricsReport(metrics []domain.Metric)
 }

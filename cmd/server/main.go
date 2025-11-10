@@ -9,7 +9,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/jmoiron/sqlx"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/domain/repository"
 
 	"go.uber.org/zap"
@@ -54,20 +55,15 @@ func main() {
 		dbCtx, cancelDB := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancelDB()
 
-		poolConfig, err := pgxpool.ParseConfig(*cfg.DatabaseDSN)
+		db, err := sqlx.ConnectContext(dbCtx, "pgx", *cfg.DatabaseDSN)
 		if err != nil {
-			logger.Log.Error("Failed to parse database config", zap.Error(err))
+			logger.Log.Error("Failed to initialize database", zap.Error(err))
 		} else {
-			pool, err := pgxpool.NewWithConfig(dbCtx, poolConfig)
-			if err != nil {
-				logger.Log.Error("Failed to initialize database", zap.Error(err))
-			} else {
-				defer pool.Close()
+			defer db.Close()
 
-				mPostgresRepo := database.NewMetricsPostgresRepository(pool)
-				metricRepo = mPostgresRepo
-				healthChecker = database.NewDBhealthCheckImpl(pool)
-			}
+			mPostgresRepo := database.NewMetricsPostgresRepository(db)
+			metricRepo = mPostgresRepo
+			healthChecker = database.NewDBhealthCheckImpl(db)
 		}
 	}
 

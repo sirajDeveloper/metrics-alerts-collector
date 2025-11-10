@@ -7,10 +7,11 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/sirajDeveloper/metrics-alerts-collector/internal/agent/usecase"
+
 	"github.com/go-resty/resty/v2"
 
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/agent/domain"
-	"github.com/sirajDeveloper/metrics-alerts-collector/internal/agent/usecase"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/logger"
 	"go.uber.org/zap"
 )
@@ -27,40 +28,10 @@ func NewHTTPSender(url string) *HTTPSender {
 	}
 }
 
-var _ usecase.MetricSender = (*HTTPSender)(nil)
+func (s *HTTPSender) sendRequest(url string, reqBody interface{}) error {
+	logger.Log.Info("Request to", zap.String("url", url) /*zap.Any("body", reqBody)*/)
 
-func (s *HTTPSender) Send(metric domain.Metric) error {
-	var req MetricUpdateRequest
-
-	switch metric.Type {
-	case domain.Counter:
-		valInt, ok := metric.Value.(int64)
-		if !ok {
-			return fmt.Errorf("invalid counter value type")
-		}
-		req = MetricUpdateRequest{
-			Name:  metric.Name,
-			Type:  string(metric.Type),
-			Delta: &valInt,
-		}
-	case domain.Gauge:
-		valFloat, ok := metric.Value.(float64)
-		if !ok {
-			return fmt.Errorf("invalid gauge value type")
-		}
-		req = MetricUpdateRequest{
-			Name:  metric.Name,
-			Type:  string(metric.Type),
-			Value: &valFloat,
-		}
-	default:
-		return fmt.Errorf("unknown metric type")
-	}
-
-	url := s.serverURL + "/update"
-	logger.Log.Info("Request to", zap.String("url", url), zap.Any("body", req))
-
-	jsonData, err := json.Marshal(&req)
+	jsonData, err := json.Marshal(reqBody)
 	if err != nil {
 		return err
 	}
@@ -85,6 +56,73 @@ func (s *HTTPSender) Send(metric domain.Metric) error {
 	}
 
 	return nil
+}
+
+var _ usecase.MetricSender = (*HTTPSender)(nil)
+
+func (s *HTTPSender) Send(metric *domain.Metric) {
+	req, err := s.prepareMetricRequest(metric)
+	if err != nil {
+		logger.Log.Error("metric preparation failed", zap.String("metric", metric.Name), zap.Error(err))
+		return
+	}
+
+	url := s.serverURL + "/update"
+	err = s.sendRequest(url, req)
+	if err := s.sendRequest(url, req); err != nil {
+		logger.Log.Error("batch send failed", zap.String("url", url), zap.Error(err))
+	}
+}
+
+var _ usecase.MetricBatchSender = (*HTTPSender)(nil)
+
+func (s *HTTPSender) SendBatch(metrics []domain.Metric) {
+	reqs := make([]MetricUpdateRequest, 0, len(metrics))
+
+	for i := range metrics {
+		metric := metrics[i]
+		req, err := s.prepareMetricRequest(&metric)
+		if err != nil {
+			logger.Log.Error("metric preparation failed", zap.String("metric", metric.Name), zap.Error(err))
+			return
+		}
+		reqs = append(reqs, *req)
+	}
+
+	url := s.serverURL + "/updates"
+	if err := s.sendRequest(url, reqs); err != nil {
+		logger.Log.Error("batch send failed", zap.String("url", url), zap.Error(err))
+	}
+}
+
+func (s *HTTPSender) prepareMetricRequest(metric *domain.Metric) (*MetricUpdateRequest, error) {
+	var req MetricUpdateRequest
+
+	switch metric.Type {
+	case domain.Counter:
+		valInt, ok := metric.Value.(int64)
+		if !ok {
+			return nil, fmt.Errorf("invalid counter value type")
+		}
+		req = MetricUpdateRequest{
+			Name:  metric.Name,
+			Type:  string(metric.Type),
+			Delta: &valInt,
+		}
+	case domain.Gauge:
+		valFloat, ok := metric.Value.(float64)
+		if !ok {
+			return nil, fmt.Errorf("invalid gauge value type")
+		}
+		req = MetricUpdateRequest{
+			Name:  metric.Name,
+			Type:  string(metric.Type),
+			Value: &valFloat,
+		}
+	default:
+		return nil, fmt.Errorf("unknown metric type")
+	}
+	return &req, nil
 }
 
 type MetricUpdateRequest struct {

@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jmoiron/sqlx"
 
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/usecase"
 )
@@ -12,11 +12,11 @@ import (
 const defaultPingTimeout = 5 * time.Second
 
 type DBhealthCheckImpl struct {
-	pool *pgxpool.Pool
+	db *sqlx.DB
 }
 
-func NewDBhealthCheckImpl(pool *pgxpool.Pool) *DBhealthCheckImpl {
-	return &DBhealthCheckImpl{pool: pool}
+func NewDBhealthCheckImpl(db *sqlx.DB) *DBhealthCheckImpl {
+	return &DBhealthCheckImpl{db: db}
 }
 
 var _ usecase.DatabaseHealthChecker = (*DBhealthCheckImpl)(nil)
@@ -24,13 +24,9 @@ var _ usecase.DatabaseHealthChecker = (*DBhealthCheckImpl)(nil)
 func (p *DBhealthCheckImpl) Ping(ctx context.Context) error {
 	pingCtx, cancel := context.WithTimeout(ctx, defaultPingTimeout)
 	defer cancel()
-	return p.pool.Ping(pingCtx)
+	return p.db.PingContext(pingCtx)
 }
 
 func (p *DBhealthCheckImpl) Close() {
-	p.pool.Close()
-}
-
-func (p *DBhealthCheckImpl) Pool() *pgxpool.Pool {
-	return p.pool
+	p.db.Close()
 }

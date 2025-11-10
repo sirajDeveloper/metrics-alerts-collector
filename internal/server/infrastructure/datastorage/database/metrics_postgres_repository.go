@@ -5,9 +5,7 @@ import (
 	"database/sql"
 	"errors"
 
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jmoiron/sqlx"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/logger"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/domain/model"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/domain/repository"
@@ -15,57 +13,58 @@ import (
 )
 
 type MetricsPostgresRepository struct {
-	pool *pgxpool.Pool
+	db *sqlx.DB
 }
 
 type MetricsDB struct {
-	ID    int64
-	Name  string
-	Type  string
-	Delta sql.NullInt64
-	Value sql.NullFloat64
+	Name  string   `db:"name"`
+	Type  string   `db:"type"`
+	Delta *int64   `db:"delta"`
+	Value *float64 `db:"value"`
 }
 
-func NewMetricsPostgresRepository(pool *pgxpool.Pool) *MetricsPostgresRepository {
-	return &MetricsPostgresRepository{pool: pool}
+func NewMetricsPostgresRepository(db *sqlx.DB) *MetricsPostgresRepository {
+	return &MetricsPostgresRepository{db: db}
 }
 
 func (m *MetricsPostgresRepository) GetAll() []*model.Metrics {
-	rows, err := m.pool.Query(context.Background(), "SELECT name, type, delta, value FROM metrics")
+	ctx := context.Background()
+	dbMetrics := make([]MetricsDB, 0)
+	err := m.withTx(ctx, func(tx *sqlx.Tx) error {
+		return sqlx.SelectContext(ctx, tx, &dbMetrics, "SELECT name, type, delta, value FROM metrics")
+	})
 	if err != nil {
 		logger.Log.Error("failed to query metrics", zap.Error(err))
 		return []*model.Metrics{}
 	}
-	defer rows.Close()
-
-	result := make([]*model.Metrics, 0)
-	for rows.Next() {
-		dbMetric := MetricsDB{}
-		if err := rows.Scan(&dbMetric.Name, &dbMetric.Type, &dbMetric.Delta, &dbMetric.Value); err != nil {
-			logger.Log.Error("failed to scan metric row", zap.Error(err))
-			continue
-		}
-		result = append(result, dbMetric.toDomain())
+	result := make([]*model.Metrics, 0, len(dbMetrics))
+	for _, metric := range dbMetrics {
+		result = append(result, metric.toDomain())
 	}
-
-	if err := rows.Err(); err != nil {
-		logger.Log.Error("metrics rows iteration error", zap.Error(err))
-	}
-
 	return result
 }
 
 func (m *MetricsPostgresRepository) GetMetric(mType string, name string) *model.Metrics {
-	row := m.pool.QueryRow(context.Background(), "SELECT name, type, delta, value FROM metrics WHERE type = $1 AND name = $2", mType, name)
+	ctx := context.Background()
 	dbMetric := MetricsDB{}
-	if err := row.Scan(&dbMetric.Name, &dbMetric.Type, &dbMetric.Delta, &dbMetric.Value); err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+	err := m.withTx(ctx, func(tx *sqlx.Tx) error {
+		query, args, namedErr := sqlx.Named("SELECT name, type, delta, value FROM metrics WHERE type = :type AND name = :name", map[string]any{
+			"type": mType,
+			"name": name,
+		})
+		if namedErr != nil {
+			return namedErr
+		}
+		query = m.db.Rebind(query)
+		return sqlx.GetContext(ctx, tx, &dbMetric, query, args...)
+	})
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil
 		}
-		logger.Log.Error("failed to scan metric", zap.Error(err))
+		logger.Log.Error("failed to query metric", zap.Error(err))
 		return nil
 	}
-
 	return dbMetric.toDomain()
 }
 
@@ -77,60 +76,88 @@ func (m *MetricsPostgresRepository) Save(metric *model.Metrics) {
 	dbMetric := newMetricsDBFromDomain(metric)
 	ctx := context.Background()
 
-	tag, err := m.updateMetric(ctx, dbMetric)
+	err := m.withTx(ctx, func(tx *sqlx.Tx) error {
+		rowsUpdated, updateErr := m.updateMetric(ctx, tx, dbMetric)
+		if updateErr != nil {
+			return updateErr
+		}
+		if rowsUpdated > 0 {
+			return nil
+		}
+		return m.insertMetric(ctx, tx, dbMetric)
+	})
 	if err != nil {
-		logger.Log.Error("failed to update metric", zap.Error(err))
-		return
-	}
-
-	if tag.RowsAffected() > 0 {
-		return
-	}
-
-	err = m.insertMetric(ctx, dbMetric)
-	if err != nil {
-		logger.Log.Error("failed to insert metric", zap.Error(err))
+		logger.Log.Error("failed to persist metric", zap.Error(err))
 	}
 }
 
-func (m *MetricsPostgresRepository) updateMetric(ctx context.Context, metric MetricsDB) (pgconn.CommandTag, error) {
-	return m.pool.Exec(ctx, "UPDATE metrics SET delta = $3, value = $4 WHERE name = $1 AND type = $2", metric.Name, metric.Type, metric.Delta, metric.Value)
+func (m *MetricsPostgresRepository) updateMetric(ctx context.Context, exec sqlx.ExtContext, metric MetricsDB) (int64, error) {
+	result, err := sqlx.NamedExecContext(ctx, exec, "UPDATE metrics SET delta = :delta, value = :value WHERE name = :name AND type = :type", metric)
+	if err != nil {
+		return 0, err
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return 0, err
+	}
+	return rows, nil
 }
 
-func (m *MetricsPostgresRepository) insertMetric(ctx context.Context, metric MetricsDB) error {
-	_, err := m.pool.Exec(ctx, "INSERT INTO metrics (name, type, delta, value) VALUES ($1, $2, $3, $4)", metric.Name, metric.Type, metric.Delta, metric.Value)
+func (m *MetricsPostgresRepository) insertMetric(ctx context.Context, exec sqlx.ExtContext, metric MetricsDB) error {
+	_, err := sqlx.NamedExecContext(ctx, exec, "INSERT INTO metrics (name, type, delta, value) VALUES (:name, :type, :delta, :value)", metric)
 	return err
 }
 
+func (m *MetricsPostgresRepository) withTx(ctx context.Context, fn func(*sqlx.Tx) error) error {
+	tx, err := m.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			if rollbackErr := tx.Rollback(); rollbackErr != nil && !errors.Is(rollbackErr, sql.ErrTxDone) {
+				logger.Log.Error("failed to rollback transaction", zap.Error(rollbackErr))
+			}
+		}
+	}()
+	if err := fn(tx); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	committed = true
+	return nil
+}
+
 func newMetricsDBFromDomain(metric *model.Metrics) MetricsDB {
-	delta := sql.NullInt64{}
+	var delta *int64
 	if metric.Delta != nil {
-		delta.Int64 = *metric.Delta
-		delta.Valid = true
+		value := *metric.Delta
+		delta = &value
 	}
-
-	value := sql.NullFloat64{}
+	var valuePtr *float64
 	if metric.Value != nil {
-		value.Float64 = *metric.Value
-		value.Valid = true
+		val := *metric.Value
+		valuePtr = &val
 	}
-
 	return MetricsDB{
 		Name:  metric.ID,
 		Type:  metric.MType,
 		Delta: delta,
-		Value: value,
+		Value: valuePtr,
 	}
 }
 
 func (m MetricsDB) toDomain() *model.Metrics {
 	metric := model.CreateMetric(m.Name, m.Type)
-	if m.Delta.Valid {
-		value := m.Delta.Int64
+	if m.Delta != nil {
+		value := *m.Delta
 		metric.Delta = &value
 	}
-	if m.Value.Valid {
-		val := m.Value.Float64
+	if m.Value != nil {
+		val := *m.Value
 		metric.Value = &val
 	}
 	return metric
