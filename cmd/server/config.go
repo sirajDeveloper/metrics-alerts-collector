@@ -14,6 +14,7 @@ func parseConfig() (*Config, error) {
 	var flagRestore bool
 	var flagDatabaseDSN string
 	var flagMigrationsPath string
+	var flagCountRetrySave int
 
 	flag.StringVar(&flagAddress, "a", "localhost:8080", "address and port to run server")
 	flag.IntVar(&flagStoreInterval, "i", 300, "store interval seconds (0 = sync)")
@@ -21,6 +22,7 @@ func parseConfig() (*Config, error) {
 	flag.BoolVar(&flagRestore, "r", true, "restore saved values on start")
 	flag.StringVar(&flagDatabaseDSN, "d", "", "database connection string")
 	flag.StringVar(&flagMigrationsPath, "m", "./migrations", "migrations directory")
+	flag.IntVar(&flagCountRetrySave, "retry", 3, "count of retry attempts for database save")
 	flag.Parse()
 
 	_ = godotenv.Load(".env")
@@ -50,6 +52,9 @@ func parseConfig() (*Config, error) {
 	} else {
 		cfg.MigrationsPath = nil
 	}
+	if cfg.CountRetrySave == nil {
+		cfg.CountRetrySave = &flagCountRetrySave
+	}
 
 	return cfg, nil
 }
@@ -61,6 +66,7 @@ type Config struct {
 	Restore         *bool   `env:"RESTORE"`
 	DatabaseDSN     *string `env:"DATABASE_DSN"`
 	MigrationsPath  *string `env:"MIGRATIONS_PATH"`
+	CountRetrySave  *int    `env:"COUNT_RETRY_SAVE"`
 }
 
 func optionalString(current *string, fallback string) *string {

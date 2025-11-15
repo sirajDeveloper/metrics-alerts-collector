@@ -61,7 +61,11 @@ func main() {
 		} else {
 			defer db.Close()
 
-			mPostgresRepo := database.NewMetricsPostgresRepository(db)
+			retryCount := 3
+			if cfg.CountRetrySave != nil {
+				retryCount = *cfg.CountRetrySave
+			}
+			mPostgresRepo := database.NewMetricsPostgresRepository(db, retryCount)
 			metricRepo = mPostgresRepo
 			healthChecker = database.NewDBhealthCheckImpl(db)
 		}

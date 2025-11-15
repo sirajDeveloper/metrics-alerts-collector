@@ -4,7 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"time"
 
+	"github.com/jackc/pgerrcode"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jmoiron/sqlx"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/logger"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/domain/model"
@@ -13,7 +16,8 @@ import (
 )
 
 type MetricsPostgresRepository struct {
-	db *sqlx.DB
+	db         *sqlx.DB
+	retryCount int
 }
 
 type MetricsDB struct {
@@ -23,8 +27,11 @@ type MetricsDB struct {
 	Value *float64 `db:"value"`
 }
 
-func NewMetricsPostgresRepository(db *sqlx.DB) *MetricsPostgresRepository {
-	return &MetricsPostgresRepository{db: db}
+func NewMetricsPostgresRepository(db *sqlx.DB, retryCount int) *MetricsPostgresRepository {
+	return &MetricsPostgresRepository{
+		db:         db,
+		retryCount: retryCount,
+	}
 }
 
 func (m *MetricsPostgresRepository) GetAll() []*model.Metrics {
@@ -68,15 +75,8 @@ func (m *MetricsPostgresRepository) GetMetric(mType string, name string) *model.
 	return dbMetric.toDomain()
 }
 
-func (m *MetricsPostgresRepository) Save(metric *model.Metrics) {
-	if metric == nil {
-		return
-	}
-
-	dbMetric := newMetricsDBFromDomain(metric)
-	ctx := context.Background()
-
-	err := m.withTx(ctx, func(tx *sqlx.Tx) error {
+func (m *MetricsPostgresRepository) updateOrInsert(ctx context.Context, dbMetric *MetricsDB) error {
+	updateOrInsertFunc := func(tx *sqlx.Tx) error {
 		rowsUpdated, updateErr := m.updateMetric(ctx, tx, dbMetric)
 		if updateErr != nil {
 			return updateErr
@@ -85,13 +85,48 @@ func (m *MetricsPostgresRepository) Save(metric *model.Metrics) {
 			return nil
 		}
 		return m.insertMetric(ctx, tx, dbMetric)
-	})
-	if err != nil {
+	}
+	return m.withTx(ctx, updateOrInsertFunc)
+}
+
+func (m *MetricsPostgresRepository) Save(metric *model.Metrics) {
+	if metric == nil {
+		return
+	}
+
+	dbMetric := newMetricsDBFromDomain(metric)
+	ctx := context.Background()
+
+	for attempt := 1; attempt <= m.retryCount; attempt++ {
+		err := m.updateOrInsert(ctx, &dbMetric)
+		if err == nil {
+			return
+		}
+
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgerrcode.IsConnectionException(pgErr.Code) {
+			if attempt < m.retryCount {
+				delay := time.Duration(2*attempt-1) * time.Second
+				logger.Log.Warn("database connection error, retrying",
+					zap.Int("attempt", attempt),
+					zap.Int("max_attempts", m.retryCount),
+					zap.Duration("delay", delay),
+					zap.Error(err))
+				time.Sleep(delay)
+				continue
+			}
+			logger.Log.Error("failed to persist metric after all retry attempts",
+				zap.Int("attempts", m.retryCount),
+				zap.Error(err))
+			return
+		}
+
 		logger.Log.Error("failed to persist metric", zap.Error(err))
+		return
 	}
 }
 
-func (m *MetricsPostgresRepository) updateMetric(ctx context.Context, exec sqlx.ExtContext, metric MetricsDB) (int64, error) {
+func (m *MetricsPostgresRepository) updateMetric(ctx context.Context, exec sqlx.ExtContext, metric *MetricsDB) (int64, error) {
 	result, err := sqlx.NamedExecContext(ctx, exec, "UPDATE metrics SET delta = :delta, value = :value WHERE name = :name AND type = :type", metric)
 	if err != nil {
 		return 0, err
@@ -103,7 +138,7 @@ func (m *MetricsPostgresRepository) updateMetric(ctx context.Context, exec sqlx.
 	return rows, nil
 }
 
-func (m *MetricsPostgresRepository) insertMetric(ctx context.Context, exec sqlx.ExtContext, metric MetricsDB) error {
+func (m *MetricsPostgresRepository) insertMetric(ctx context.Context, exec sqlx.ExtContext, metric *MetricsDB) error {
 	_, err := sqlx.NamedExecContext(ctx, exec, "INSERT INTO metrics (name, type, delta, value) VALUES (:name, :type, :delta, :value)", metric)
 	return err
 }
