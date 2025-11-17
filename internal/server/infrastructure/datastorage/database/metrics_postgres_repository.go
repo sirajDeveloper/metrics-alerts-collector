@@ -103,27 +103,36 @@ func (m *MetricsPostgresRepository) Save(metric *model.Metrics) {
 			return
 		}
 
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgerrcode.IsConnectionException(pgErr.Code) {
-			if attempt < m.retryCount {
-				delay := time.Duration(2*attempt-1) * time.Second
-				logger.Log.Warn("database connection error, retrying",
-					zap.Int("attempt", attempt),
-					zap.Int("max_attempts", m.retryCount),
-					zap.Duration("delay", delay),
-					zap.Error(err))
-				time.Sleep(delay)
-				continue
-			}
+		if !m.isConnectionError(err) {
+			logger.Log.Error("failed to persist metric", zap.Error(err))
+			return
+		}
+
+		if attempt >= m.retryCount {
 			logger.Log.Error("failed to persist metric after all retry attempts",
 				zap.Int("attempts", m.retryCount),
 				zap.Error(err))
 			return
 		}
 
-		logger.Log.Error("failed to persist metric", zap.Error(err))
-		return
+		m.delay(attempt, err)
 	}
+}
+
+func (m *MetricsPostgresRepository) isConnectionError(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgerrcode.IsConnectionException(pgErr.Code)
+}
+
+func (m *MetricsPostgresRepository) delay(attempt int, err error) {
+	delaySeconds := 2*attempt - 1
+	delay := time.Duration(delaySeconds) * time.Second
+	logger.Log.Warn("database connection error, retrying",
+		zap.Int("attempt", attempt),
+		zap.Int("max_attempts", m.retryCount),
+		zap.Duration("delay", delay),
+		zap.Error(err))
+	time.Sleep(delay)
 }
 
 func (m *MetricsPostgresRepository) updateMetric(ctx context.Context, exec sqlx.ExtContext, metric *MetricsDB) (int64, error) {

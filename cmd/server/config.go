@@ -69,6 +69,34 @@ type Config struct {
 	CountRetrySave  *int    `env:"COUNT_RETRY_SAVE"`
 }
 
+func (c *Config) GetAddress() *string {
+	return c.Address
+}
+
+func (c *Config) GetStoreInterval() *int {
+	return c.StoreInterval
+}
+
+func (c *Config) GetFileStoragePath() *string {
+	return c.FileStoragePath
+}
+
+func (c *Config) GetRestore() *bool {
+	return c.Restore
+}
+
+func (c *Config) GetDatabaseDSN() *string {
+	return c.DatabaseDSN
+}
+
+func (c *Config) GetMigrationsPath() *string {
+	return c.MigrationsPath
+}
+
+func (c *Config) GetCountRetrySave() *int {
+	return c.CountRetrySave
+}
+
 func optionalString(current *string, fallback string) *string {
 	if current != nil && *current != "" {
 		return current

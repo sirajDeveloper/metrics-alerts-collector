@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/logger"
+	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/bootstrap"
 	"go.uber.org/zap"
 )
 
@@ -19,7 +20,7 @@ func main() {
 		logger.Log.Fatal("Failed to parse config", zap.String("error", err.Error()))
 	}
 
-	app := NewApp(cfg)
+	app := bootstrap.NewApp(cfg)
 	if err := app.Initialize(); err != nil {
 		logger.Log.Fatal("Failed to initialize app", zap.String("error", err.Error()))
 	}

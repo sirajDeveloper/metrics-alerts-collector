@@ -1,4 +1,4 @@
-package main
+package bootstrap
 
 import (
 	"context"
@@ -17,7 +17,7 @@ import (
 )
 
 type App struct {
-	config      *Config
+	config      Config
 	server      *http.Server
 	scheduler   *scheduler.MetricEmitterScheduler
 	schedCtx    context.Context
@@ -25,7 +25,7 @@ type App struct {
 	db          *sqlx.DB
 }
 
-func NewApp(cfg *Config) *App {
+func NewApp(cfg Config) *App {
 	return &App{
 		config: cfg,
 	}
@@ -56,7 +56,7 @@ func (a *App) Initialize() error {
 
 func (a *App) Run() error {
 	go func() {
-		logger.Log.Info("Server starting on http://" + *a.config.Address)
+		logger.Log.Info("Server starting on http://" + *a.config.GetAddress())
 		if err := a.server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			logger.Log.Fatal("Server failed to start", zap.String("error", err.Error()))
 		}

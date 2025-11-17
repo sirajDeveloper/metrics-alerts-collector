@@ -1,4 +1,4 @@
-package main
+package bootstrap
 
 import (
 	"context"
@@ -18,10 +18,10 @@ import (
 )
 
 type InfrastructureInitializer struct {
-	config *Config
+	config Config
 }
 
-func NewInfrastructureInitializer(cfg *Config) *InfrastructureInitializer {
+func NewInfrastructureInitializer(cfg Config) *InfrastructureInitializer {
 	return &InfrastructureInitializer{
 		config: cfg,
 	}
@@ -29,15 +29,15 @@ func NewInfrastructureInitializer(cfg *Config) *InfrastructureInitializer {
 
 type InfrastructureResult struct {
 	MetricRepository repository.MetricRepository
-	FileStorage      *file.JSONFileStorage
+	FileStorage      repository.MetricFileStorage
 	HealthChecker    usecase.DatabaseHealthChecker
 	DB               *sqlx.DB
 }
 
 func (i *InfrastructureInitializer) Initialize() (*InfrastructureResult, error) {
-	fileStorage := file.NewJSONFileStorage(*i.config.FileStoragePath)
+	fileStorage := file.NewJSONFileStorage(*i.config.GetFileStoragePath())
 
-	if i.config.DatabaseDSN != nil {
+	if i.config.GetDatabaseDSN() != nil {
 		result, err := i.initDatabaseStorage()
 		if err != nil {
 			logger.Log.Warn("Failed to initialize database, falling back to memory storage", zap.Error(err))
@@ -51,8 +51,8 @@ func (i *InfrastructureInitializer) Initialize() (*InfrastructureResult, error) 
 }
 
 func (i *InfrastructureInitializer) initDatabaseStorage() (*InfrastructureResult, error) {
-	if i.config.MigrationsPath != nil {
-		migrationRunner, err := database.NewMigrationRunner(*i.config.MigrationsPath, *i.config.DatabaseDSN)
+	if i.config.GetMigrationsPath() != nil {
+		migrationRunner, err := database.NewMigrationRunner(*i.config.GetMigrationsPath(), *i.config.GetDatabaseDSN())
 		if err != nil {
 			return nil, err
 		}
@@ -64,14 +64,14 @@ func (i *InfrastructureInitializer) initDatabaseStorage() (*InfrastructureResult
 	dbCtx, cancelDB := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancelDB()
 
-	db, err := sqlx.ConnectContext(dbCtx, "pgx", *i.config.DatabaseDSN)
+	db, err := sqlx.ConnectContext(dbCtx, "pgx", *i.config.GetDatabaseDSN())
 	if err != nil {
 		return nil, err
 	}
 
 	retryCount := 3
-	if i.config.CountRetrySave != nil {
-		retryCount = *i.config.CountRetrySave
+	if i.config.GetCountRetrySave() != nil {
+		retryCount = *i.config.GetCountRetrySave()
 	}
 
 	return &InfrastructureResult{

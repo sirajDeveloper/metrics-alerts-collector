@@ -1,4 +1,4 @@
-package main
+package bootstrap
 
 import (
 	"context"
@@ -10,14 +10,14 @@ import (
 )
 
 type HandlerInitializer struct {
-	config        *Config
+	config        Config
 	metricUpdater usecase.MetricUpdater
 	metricGetter  usecase.MetricGetter
-	healthService *usecase.HealthService
+	healthService usecase.HealthChecker
 	emitter       *usecase.MetricsEmitterService
 }
 
-func NewHandlerInitializer(cfg *Config, metricUpdater usecase.MetricUpdater, metricGetter usecase.MetricGetter, healthService *usecase.HealthService, emitter *usecase.MetricsEmitterService) *HandlerInitializer {
+func NewHandlerInitializer(cfg Config, metricUpdater usecase.MetricUpdater, metricGetter usecase.MetricGetter, healthService usecase.HealthChecker, emitter *usecase.MetricsEmitterService) *HandlerInitializer {
 	return &HandlerInitializer{
 		config:        cfg,
 		metricUpdater: metricUpdater,
@@ -35,13 +35,13 @@ type HandlerResult struct {
 }
 
 func (h *HandlerInitializer) Initialize() *HandlerResult {
-	schedulerInstance := scheduler.NewMetricEmitterScheduler(h.emitter, *h.config.StoreInterval, *h.config.Restore)
+	schedulerInstance := scheduler.NewMetricEmitterScheduler(h.emitter, *h.config.GetStoreInterval(), *h.config.GetRestore())
 	schedCtx, schedCancel := context.WithCancel(context.Background())
 	schedulerInstance.Start(schedCtx)
 
 	chiRouter := router.NewChiRouter(h.metricUpdater, h.metricGetter, h.healthService)
 	server := &http.Server{
-		Addr:    *h.config.Address,
+		Addr:    *h.config.GetAddress(),
 		Handler: chiRouter.Handler(),
 	}
 
