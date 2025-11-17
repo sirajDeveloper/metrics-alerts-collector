@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/agent/usecase"
 
@@ -17,20 +18,47 @@ import (
 )
 
 type HTTPSender struct {
-	serverURL string
-	client    *resty.Client
+	serverURL  string
+	client     *resty.Client
+	retryCount int
 }
 
-func NewHTTPSender(url string) *HTTPSender {
+func NewHTTPSender(url string, retryCount int) *HTTPSender {
 	return &HTTPSender{
-		serverURL: url,
-		client:    resty.New(),
+		serverURL:  url,
+		client:     resty.New(),
+		retryCount: retryCount,
 	}
 }
 
-func (s *HTTPSender) sendRequest(url string, reqBody interface{}) error {
-	logger.Log.Info("Request to", zap.String("url", url) /*zap.Any("body", reqBody)*/)
+func (s *HTTPSender) executeWithRetry(operation func() error) error {
+	for attempt := 1; attempt <= s.retryCount; attempt++ {
+		err := operation()
+		if err == nil {
+			return nil
+		}
 
+		if attempt < s.retryCount {
+			delay := time.Duration(2*attempt-1) * time.Second
+			logger.Log.Warn("operation failed, retrying",
+				zap.Int("attempt", attempt),
+				zap.Int("max_attempts", s.retryCount),
+				zap.Duration("delay", delay),
+				zap.Error(err))
+			time.Sleep(delay)
+			continue
+		}
+
+		logger.Log.Error("operation failed after all retry attempts",
+			zap.Int("attempts", s.retryCount),
+			zap.Error(err))
+		return err
+	}
+
+	return fmt.Errorf("operation failed")
+}
+
+func (s *HTTPSender) sendRequest(url string, reqBody interface{}) error {
 	jsonData, err := json.Marshal(reqBody)
 	if err != nil {
 		return err
@@ -41,21 +69,27 @@ func (s *HTTPSender) sendRequest(url string, reqBody interface{}) error {
 		return err
 	}
 
-	resp, err := s.client.R().
-		SetHeader("Content-Type", "application/json").
-		SetHeader("Content-Encoding", "gzip").
-		SetBody(compressedData).
-		Post(url)
-	if err != nil {
-		return err
-	}
-	logger.Log.Info("Response", zap.Int("http code", resp.StatusCode()))
+	return s.executeWithRetry(func() error {
+		logger.Log.Info("Request to", zap.String("url", url))
 
-	if resp.StatusCode() != http.StatusOK {
-		return fmt.Errorf("unexpected status code: %d", resp.StatusCode())
-	}
+		resp, err := s.client.R().
+			SetHeader("Content-Type", "application/json").
+			SetHeader("Content-Encoding", "gzip").
+			SetBody(compressedData).
+			Post(url)
 
-	return nil
+		if err != nil {
+			return err
+		}
+
+		logger.Log.Info("Response", zap.Int("http code", resp.StatusCode()))
+
+		if resp.StatusCode() != http.StatusOK {
+			return fmt.Errorf("unexpected status code: %d", resp.StatusCode())
+		}
+
+		return nil
+	})
 }
 
 var _ usecase.MetricSender = (*HTTPSender)(nil)
