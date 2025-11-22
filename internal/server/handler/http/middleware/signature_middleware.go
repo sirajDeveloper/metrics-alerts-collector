@@ -18,7 +18,10 @@ type hashWriter struct {
 }
 
 func (hw *hashWriter) Write(b []byte) (int, error) {
-	if !hw.headerSent {
+	if hw.headerSent {
+		return hw.ResponseWriter.Write(b)
+	}
+	if hw.status == 0 {
 		hw.status = http.StatusOK
 	}
 	hw.buf = append(hw.buf, b...)
@@ -26,9 +29,10 @@ func (hw *hashWriter) Write(b []byte) (int, error) {
 }
 
 func (hw *hashWriter) WriteHeader(code int) {
-	if !hw.headerSent {
-		hw.status = code
+	if hw.headerSent {
+		return
 	}
+	hw.status = code
 }
 
 func (hw *hashWriter) writeHashedResponse() {
