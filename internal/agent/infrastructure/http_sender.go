@@ -74,11 +74,14 @@ func (s *HTTPSender) sendRequest(url string, reqBody interface{}) error {
 		return err
 	}
 
-	secret := []byte(s.secretKey)
-	mac := hmac.New(sha256.New, secret)
-	mac.Write(jsonData)
-	hash := mac.Sum(nil)
-	hashHex := hex.EncodeToString(hash)
+	var hashHex string
+	if s.secretKey != "" {
+		secret := []byte(s.secretKey)
+		mac := hmac.New(sha256.New, secret)
+		mac.Write(jsonData)
+		hash := mac.Sum(nil)
+		hashHex = hex.EncodeToString(hash)
+	}
 
 	return s.executeWithRetry(func() error {
 		logger.Log.Info("Request to", zap.String("url", url))
