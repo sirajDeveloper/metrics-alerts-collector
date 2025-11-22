@@ -11,21 +11,32 @@ import (
 
 type hashWriter struct {
 	http.ResponseWriter
-	buf    []byte
-	secret string
-	status int
+	buf        []byte
+	secret     string
+	status     int
+	headerSent bool
 }
 
 func (hw *hashWriter) Write(b []byte) (int, error) {
+	if !hw.headerSent {
+		hw.status = http.StatusOK
+	}
 	hw.buf = append(hw.buf, b...)
 	return len(b), nil
 }
 
 func (hw *hashWriter) WriteHeader(code int) {
-	hw.status = code
+	if !hw.headerSent {
+		hw.status = code
+	}
 }
 
 func (hw *hashWriter) writeHashedResponse() {
+	if hw.headerSent {
+		return
+	}
+	hw.headerSent = true
+
 	if hw.secret != "" && len(hw.buf) > 0 {
 		mac := hmac.New(sha256.New, []byte(hw.secret))
 		mac.Write(hw.buf)
