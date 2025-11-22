@@ -3,6 +3,9 @@ package infrastructure
 import (
 	"bytes"
 	"compress/gzip"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -20,13 +23,15 @@ import (
 type HTTPSender struct {
 	serverURL  string
 	client     *resty.Client
+	secretKey  string
 	retryCount int
 }
 
-func NewHTTPSender(url string, retryCount int) *HTTPSender {
+func NewHTTPSender(url, secretKey string, retryCount int) *HTTPSender {
 	return &HTTPSender{
 		serverURL:  url,
 		client:     resty.New(),
+		secretKey:  secretKey,
 		retryCount: retryCount,
 	}
 }
@@ -69,12 +74,19 @@ func (s *HTTPSender) sendRequest(url string, reqBody interface{}) error {
 		return err
 	}
 
+	secret := []byte(s.secretKey)
+	mac := hmac.New(sha256.New, secret)
+	mac.Write(jsonData)
+	hash := mac.Sum(nil)
+	hashHex := hex.EncodeToString(hash)
+
 	return s.executeWithRetry(func() error {
 		logger.Log.Info("Request to", zap.String("url", url))
 
 		resp, err := s.client.R().
 			SetHeader("Content-Type", "application/json").
 			SetHeader("Content-Encoding", "gzip").
+			SetHeader("HashSHA256", hashHex).
 			SetBody(compressedData).
 			Post(url)
 

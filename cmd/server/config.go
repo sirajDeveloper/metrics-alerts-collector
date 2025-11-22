@@ -15,6 +15,7 @@ func parseConfig() (*Config, error) {
 	var flagDatabaseDSN string
 	var flagMigrationsPath string
 	var flagCountRetrySave int
+	var flagSecretKey string
 
 	flag.StringVar(&flagAddress, "a", "localhost:8080", "address and port to run server")
 	flag.IntVar(&flagStoreInterval, "i", 300, "store interval seconds (0 = sync)")
@@ -23,6 +24,7 @@ func parseConfig() (*Config, error) {
 	flag.StringVar(&flagDatabaseDSN, "d", "", "database connection string")
 	flag.StringVar(&flagMigrationsPath, "m", "./migrations", "migrations directory")
 	flag.IntVar(&flagCountRetrySave, "retry", 3, "count of retry attempts for database save")
+	flag.StringVar(&flagSecretKey, "k", "secret", "secret key for signature")
 	flag.Parse()
 
 	_ = godotenv.Load(".env")
@@ -55,6 +57,9 @@ func parseConfig() (*Config, error) {
 	if cfg.CountRetrySave == nil {
 		cfg.CountRetrySave = &flagCountRetrySave
 	}
+	if cfg.SecretKey == nil {
+		cfg.SecretKey = &flagSecretKey
+	}
 
 	return cfg, nil
 }
@@ -67,6 +72,7 @@ type Config struct {
 	DatabaseDSN     *string `env:"DATABASE_DSN"`
 	MigrationsPath  *string `env:"MIGRATIONS_PATH"`
 	CountRetrySave  *int    `env:"COUNT_RETRY_SAVE"`
+	SecretKey       *string `env:"KEY"`
 }
 
 func (c *Config) GetAddress() *string {
@@ -95,6 +101,9 @@ func (c *Config) GetMigrationsPath() *string {
 
 func (c *Config) GetCountRetrySave() *int {
 	return c.CountRetrySave
+}
+func (c *Config) GetSecretKey() *string {
+	return c.SecretKey
 }
 
 func optionalString(current *string, fallback string) *string {

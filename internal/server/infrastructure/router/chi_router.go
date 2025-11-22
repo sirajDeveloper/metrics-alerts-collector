@@ -16,14 +16,18 @@ type ChiRouter struct {
 	router         chi.Router
 	metricsHandler *httpHandler.MetricsHandler
 	healthHandler  *httpHandler.HealthHandler
+	secretKey      string
 }
 
-func NewChiRouter(metricUpdater usecase.MetricUpdater, metricGetter usecase.MetricGetter, healthChecker usecase.HealthChecker) *ChiRouter {
+func NewChiRouter(metricUpdater usecase.MetricUpdater, metricGetter usecase.MetricGetter, healthChecker usecase.HealthChecker, secretKey string) *ChiRouter {
 	r := chi.NewRouter()
 
 	r.Use(chiMidware.Recoverer)
 	r.Use(customMidWare.LoggingMiddleware)
 	r.Use(customMidWare.GzipMiddleware)
+	if secretKey != "" {
+		r.Use(customMidWare.SignatureCheck(secretKey))
+	}
 
 	handler := httpHandler.NewMetricsHandler(metricUpdater, metricGetter)
 	healthHandler := httpHandler.NewHealthHandler(healthChecker)

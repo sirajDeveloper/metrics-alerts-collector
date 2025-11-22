@@ -11,6 +11,7 @@ var (
 	reportInterval int
 	pollInterval   int
 	countRetrySave int
+	secretKey      string
 )
 
 func ParseConfig() {
@@ -18,6 +19,7 @@ func ParseConfig() {
 	flag.IntVar(&pollInterval, "p", 2, "poll interval in seconds")
 	flag.IntVar(&reportInterval, "r", 10, "report interval in seconds")
 	flag.IntVar(&countRetrySave, "retry", 3, "count of retry attempts for database save")
+	flag.StringVar(&secretKey, "k", "key", "secret key for signature")
 	flag.Parse()
 	var cfg Config
 	err := env.Parse(&cfg)
@@ -36,6 +38,9 @@ func ParseConfig() {
 	if cfg.CountRetrySave != 0 {
 		countRetrySave = cfg.CountRetrySave
 	}
+	if cfg.SecretKey != "" {
+		secretKey = cfg.SecretKey
+	}
 }
 
 type Config struct {
@@ -43,4 +48,5 @@ type Config struct {
 	ReportInterval int    `env:"REPORT_INTERVAL"`
 	PollInterval   int    `env:"POLL_INTERVAL"`
 	CountRetrySave int    `env:"COUNT_RETRY_SAVE"`
+	SecretKey      string `env:"KEY"`
 }

@@ -8,4 +8,5 @@ type Config interface {
 	GetDatabaseDSN() *string
 	GetMigrationsPath() *string
 	GetCountRetrySave() *int
+	GetSecretKey() *string
 }
