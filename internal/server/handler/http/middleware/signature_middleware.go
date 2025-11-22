@@ -58,7 +58,7 @@ func RequestSignatureCheck(secret string) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			inputHashStr := r.Header.Get("HashSHA256")
 			if inputHashStr == "" {
-				http.Error(w, "HashSHA256 header missing", http.StatusBadRequest)
+				next.ServeHTTP(w, r)
 				return
 			}
 			body, err := io.ReadAll(r.Body)
