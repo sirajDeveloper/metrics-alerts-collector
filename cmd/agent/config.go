@@ -19,7 +19,7 @@ func ParseConfig() {
 	flag.IntVar(&pollInterval, "p", 2, "poll interval in seconds")
 	flag.IntVar(&reportInterval, "r", 10, "report interval in seconds")
 	flag.IntVar(&countRetrySave, "retry", 3, "count of retry attempts for database save")
-	flag.StringVar(&secretKey, "k", "key", "secret key for signature")
+	flag.StringVar(&secretKey, "k", "", "secret key for signature")
 	flag.Parse()
 	var cfg Config
 	err := env.Parse(&cfg)

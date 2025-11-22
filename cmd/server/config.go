@@ -24,7 +24,7 @@ func parseConfig() (*Config, error) {
 	flag.StringVar(&flagDatabaseDSN, "d", "", "database connection string")
 	flag.StringVar(&flagMigrationsPath, "m", "./migrations", "migrations directory")
 	flag.IntVar(&flagCountRetrySave, "retry", 3, "count of retry attempts for database save")
-	flag.StringVar(&flagSecretKey, "k", "secret", "secret key for signature")
+	flag.StringVar(&flagSecretKey, "k", "", "secret key for signature")
 	flag.Parse()
 
 	_ = godotenv.Load(".env")
