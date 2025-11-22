@@ -26,7 +26,8 @@ func NewChiRouter(metricUpdater usecase.MetricUpdater, metricGetter usecase.Metr
 	r.Use(customMidWare.LoggingMiddleware)
 	r.Use(customMidWare.GzipMiddleware)
 	if secretKey != "" {
-		r.Use(customMidWare.SignatureCheck(secretKey))
+		r.Use(customMidWare.RequestSignatureCheck(secretKey))
+		r.Use(customMidWare.ResponseSignatureAdd(secretKey))
 	}
 
 	handler := httpHandler.NewMetricsHandler(metricUpdater, metricGetter)
