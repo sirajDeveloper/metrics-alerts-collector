@@ -1,6 +1,8 @@
 package usecase
 
 import (
+	"sync"
+
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/agent/domain"
 )
 
@@ -8,6 +10,7 @@ type MetricWorkerPoolReporter struct {
 	sender      MetricSender
 	metricsChan chan domain.Metric
 	workerCount int
+	wg          sync.WaitGroup
 }
 
 func NewMetricWorkerPoolReporter(sender MetricSender, workerCount int) *MetricWorkerPoolReporter {
@@ -18,11 +21,11 @@ func NewMetricWorkerPoolReporter(sender MetricSender, workerCount int) *MetricWo
 	}
 
 	for i := 0; i < workerCount; i++ {
-		go func() {
+		reporter.wg.Go(func() {
 			for metric := range reporter.metricsChan {
 				reporter.sender.Send(&metric)
 			}
-		}()
+		})
 	}
 
 	return reporter
@@ -38,4 +41,5 @@ func (r *MetricWorkerPoolReporter) MetricsReport(metrics []domain.Metric) {
 
 func (r *MetricWorkerPoolReporter) Close() {
 	close(r.metricsChan)
+	r.wg.Wait()
 }
