@@ -1,6 +1,6 @@
 module github.com/sirajDeveloper/metrics-alerts-collector
 
-go 1.25.1
+go 1.24.10
 
 require (
 	github.com/caarlos0/env/v6 v6.10.1
