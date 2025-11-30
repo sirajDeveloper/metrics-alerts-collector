@@ -1,7 +1,8 @@
 module github.com/sirajDeveloper/metrics-alerts-collector
 
-go 1.24.10
+//go 1.25.1 //todo - пришлось закомментировать так как в github actions в тестах используется 1.24.7
 
+go 1.24.7
 require (
 	github.com/caarlos0/env/v6 v6.10.1
 	github.com/go-chi/chi/v5 v5.2.3
