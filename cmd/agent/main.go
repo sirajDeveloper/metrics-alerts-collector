@@ -3,12 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/sirajDeveloper/metrics-alerts-collector/internal/logger"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/sirajDeveloper/metrics-alerts-collector/internal/logger"
 
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/agent/infrastructure"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/agent/usecase"
@@ -21,7 +22,9 @@ func main() {
 	serverURL := "http://" + address
 	sender := infrastructure.NewHTTPSender(serverURL, secretKey, countRetrySave)
 	fmt.Printf("HTTPSender init with serverURL: %v\n", serverURL)
-	reporter := usecase.NewMetricLoopReporter(sender)
+	fmt.Printf("Rate limit: %d concurrent requests\n", rateLimit)
+	reporter := usecase.NewMetricWorkerPoolReporter(sender, rateLimit)
+	//reporter := usecase.NewMetricLoopReporter(sender)
 	collector := usecase.NewCollector(reporter)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -56,11 +59,26 @@ func main() {
 		}
 	}()
 
+	go func() {
+		ticker := time.NewTicker(time.Duration(pollInterval) * time.Second)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				collector.CollectSystemMetrics()
+			}
+		}
+	}()
+
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
 	<-sigChan
 	log.Println("Shutting down gracefully...")
+	reporter.Close()
 	time.Sleep(100 * time.Millisecond)
 	log.Println("Agent stopped")
 }

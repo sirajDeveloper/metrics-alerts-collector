@@ -2,8 +2,9 @@ package main
 
 import (
 	"flag"
-	"github.com/caarlos0/env/v6"
 	"log"
+
+	"github.com/caarlos0/env/v6"
 )
 
 var (
@@ -12,6 +13,7 @@ var (
 	pollInterval   int
 	countRetrySave int
 	secretKey      string
+	rateLimit      int
 )
 
 func ParseConfig() {
@@ -20,6 +22,7 @@ func ParseConfig() {
 	flag.IntVar(&reportInterval, "r", 10, "report interval in seconds")
 	flag.IntVar(&countRetrySave, "retry", 3, "count of retry attempts for database save")
 	flag.StringVar(&secretKey, "k", "", "secret key for signature")
+	flag.IntVar(&rateLimit, "l", 1, "rate limit for concurrent requests")
 	flag.Parse()
 	var cfg Config
 	err := env.Parse(&cfg)
@@ -41,6 +44,9 @@ func ParseConfig() {
 	if cfg.SecretKey != "" {
 		secretKey = cfg.SecretKey
 	}
+	if cfg.RateLimit != 0 {
+		rateLimit = cfg.RateLimit
+	}
 }
 
 type Config struct {
@@ -49,4 +55,5 @@ type Config struct {
 	PollInterval   int    `env:"POLL_INTERVAL"`
 	CountRetrySave int    `env:"COUNT_RETRY_SAVE"`
 	SecretKey      string `env:"KEY"`
+	RateLimit      int    `env:"RATE_LIMIT"`
 }
