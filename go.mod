@@ -2,7 +2,8 @@ module github.com/sirajDeveloper/metrics-alerts-collector
 
 //go 1.25.1 //todo - пришлось закомментировать так как в github actions в тестах используется 1.24.7
 
-go 1.24.7
+go 1.24.10
+
 require (
 	github.com/caarlos0/env/v6 v6.10.1
 	github.com/go-chi/chi/v5 v5.2.3
@@ -13,6 +14,7 @@ require (
 	github.com/jackc/pgx/v5 v5.7.6
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/joho/godotenv v1.5.1
+	github.com/shirou/gopsutil/v3 v3.24.5
 	github.com/stretchr/testify v1.11.1
 	go.uber.org/zap v1.27.0
 )
@@ -30,7 +32,6 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/power-devops/perfstat v0.0.0-20210106213030-5aafc221ea8c // indirect
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
-	github.com/shirou/gopsutil/v3 v3.24.5 // indirect
 	github.com/shoenig/go-m1cpu v0.1.6 // indirect
 	github.com/stretchr/objx v0.5.3 // indirect
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
