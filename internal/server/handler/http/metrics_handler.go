@@ -1,10 +1,14 @@
 package http
 
 import (
+	"context"
 	"embed"
 	"encoding/json"
 	"errors"
+	"net"
 	"strconv"
+	"strings"
+	"time"
 
 	"html/template"
 	"net/http"
@@ -13,6 +17,8 @@ import (
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/logger"
 	"go.uber.org/zap"
 
+	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/domain/event"
+	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/domain/model"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/usecase"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/usecase/dto"
 )
@@ -21,15 +27,56 @@ import (
 var templatesFS embed.FS
 
 type MetricsHandler struct {
-	metricUpdater usecase.MetricUpdater
-	metricGetter  usecase.MetricGetter
+	metricUpdater  usecase.MetricUpdater
+	metricGetter   usecase.MetricGetter
+	auditPublisher event.AuditEventPublisher
 }
 
-func NewMetricsHandler(metricUpdater usecase.MetricUpdater, metricGetter usecase.MetricGetter) *MetricsHandler {
+func NewMetricsHandler(metricUpdater usecase.MetricUpdater, metricGetter usecase.MetricGetter, auditPublisher event.AuditEventPublisher) *MetricsHandler {
 	return &MetricsHandler{
-		metricUpdater: metricUpdater,
-		metricGetter:  metricGetter,
+		metricUpdater:  metricUpdater,
+		metricGetter:   metricGetter,
+		auditPublisher: auditPublisher,
 	}
+}
+
+func (h *MetricsHandler) getIPAddress(r *http.Request) string {
+	ip := r.Header.Get("X-Real-IP")
+	if ip != "" {
+		return ip
+	}
+	ip = r.Header.Get("X-Forwarded-For")
+	if ip != "" {
+		ips := strings.Split(ip, ",")
+		if len(ips) > 0 {
+			return strings.TrimSpace(ips[0])
+		}
+	}
+	ip, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return r.RemoteAddr
+	}
+	return ip
+}
+
+func (h *MetricsHandler) publishAuditEvent(r *http.Request, metrics []string) {
+	if h.auditPublisher == nil || len(metrics) == 0 {
+		return
+	}
+
+	ipAddress := h.getIPAddress(r)
+	auditEvent := &model.AuditEvent{
+		TS:        time.Now().Unix(),
+		Metrics:   metrics,
+		IPAddress: ipAddress,
+	}
+
+	ctx := r.Context()
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	_ = h.auditPublisher.Publish(ctx, auditEvent)
 }
 
 func (h *MetricsHandler) GetMetricValueURLParam(w http.ResponseWriter, r *http.Request) {
@@ -132,6 +179,7 @@ func (h *MetricsHandler) UpdateMetricURLParam(w http.ResponseWriter, r *http.Req
 		return
 	}
 
+	h.publishAuditEvent(r, []string{req.ID})
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -176,6 +224,7 @@ func (h *MetricsHandler) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.publishAuditEvent(r, []string{req.ID})
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -188,12 +237,20 @@ func (h *MetricsHandler) UpdateMetrics(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	metricsSet := make(map[string]bool)
 	for i := range reqs {
 		if err := h.processMetricUpdate(&reqs[i], w); err != nil {
 			return
 		}
+		metricsSet[reqs[i].ID] = true
 	}
 
+	metrics := make([]string, 0, len(metricsSet))
+	for metric := range metricsSet {
+		metrics = append(metrics, metric)
+	}
+
+	h.publishAuditEvent(r, metrics)
 	w.WriteHeader(http.StatusOK)
 }
 

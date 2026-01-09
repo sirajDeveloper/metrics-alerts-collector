@@ -8,6 +8,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	chiMidware "github.com/go-chi/chi/v5/middleware"
 
+	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/domain/event"
 	httpHandler "github.com/sirajDeveloper/metrics-alerts-collector/internal/server/handler/http"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/usecase"
 )
@@ -19,7 +20,7 @@ type ChiRouter struct {
 	secretKey      string
 }
 
-func NewChiRouter(metricUpdater usecase.MetricUpdater, metricGetter usecase.MetricGetter, healthChecker usecase.HealthChecker, secretKey string) *ChiRouter {
+func NewChiRouter(metricUpdater usecase.MetricUpdater, metricGetter usecase.MetricGetter, healthChecker usecase.HealthChecker, secretKey string, auditPublisher event.AuditEventPublisher) *ChiRouter {
 	r := chi.NewRouter()
 
 	r.Use(chiMidware.Recoverer)
@@ -30,7 +31,7 @@ func NewChiRouter(metricUpdater usecase.MetricUpdater, metricGetter usecase.Metr
 		r.Use(customMidWare.ResponseSignatureAdd(secretKey))
 	}
 
-	handler := httpHandler.NewMetricsHandler(metricUpdater, metricGetter)
+	handler := httpHandler.NewMetricsHandler(metricUpdater, metricGetter, auditPublisher)
 	healthHandler := httpHandler.NewHealthHandler(healthChecker)
 
 	r.Get("/", handler.GetAllMetrics)

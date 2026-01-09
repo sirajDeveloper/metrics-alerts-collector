@@ -4,26 +4,29 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/domain/event"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/infrastructure/router"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/infrastructure/scheduler"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/usecase"
 )
 
 type HandlerInitializer struct {
-	config        Config
-	metricUpdater usecase.MetricUpdater
-	metricGetter  usecase.MetricGetter
-	healthService usecase.HealthChecker
-	emitter       *usecase.MetricsEmitterService
+	config         Config
+	metricUpdater  usecase.MetricUpdater
+	metricGetter   usecase.MetricGetter
+	healthService  usecase.HealthChecker
+	emitter        *usecase.MetricsEmitterService
+	auditPublisher event.AuditEventPublisher
 }
 
-func NewHandlerInitializer(cfg Config, metricUpdater usecase.MetricUpdater, metricGetter usecase.MetricGetter, healthService usecase.HealthChecker, emitter *usecase.MetricsEmitterService) *HandlerInitializer {
+func NewHandlerInitializer(cfg Config, metricUpdater usecase.MetricUpdater, metricGetter usecase.MetricGetter, healthService usecase.HealthChecker, emitter *usecase.MetricsEmitterService, auditPublisher event.AuditEventPublisher) *HandlerInitializer {
 	return &HandlerInitializer{
-		config:        cfg,
-		metricUpdater: metricUpdater,
-		metricGetter:  metricGetter,
-		healthService: healthService,
-		emitter:       emitter,
+		config:         cfg,
+		metricUpdater:  metricUpdater,
+		metricGetter:   metricGetter,
+		healthService:  healthService,
+		emitter:        emitter,
+		auditPublisher: auditPublisher,
 	}
 }
 
@@ -39,7 +42,7 @@ func (h *HandlerInitializer) Initialize() *HandlerResult {
 	schedCtx, schedCancel := context.WithCancel(context.Background())
 	schedulerInstance.Start(schedCtx)
 
-	chiRouter := router.NewChiRouter(h.metricUpdater, h.metricGetter, h.healthService, *h.config.GetSecretKey())
+	chiRouter := router.NewChiRouter(h.metricUpdater, h.metricGetter, h.healthService, *h.config.GetSecretKey(), h.auditPublisher)
 	server := &http.Server{
 		Addr:    *h.config.GetAddress(),
 		Handler: chiRouter.Handler(),

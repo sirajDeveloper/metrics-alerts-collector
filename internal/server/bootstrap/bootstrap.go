@@ -43,7 +43,7 @@ func (a *App) Initialize() error {
 	useCaseInitializer := NewUseCaseInitializer(a.config, infraResult.MetricRepository, infraResult.FileStorage, infraResult.HealthChecker)
 	useCaseResult := useCaseInitializer.Initialize()
 
-	handlerInitializer := NewHandlerInitializer(a.config, useCaseResult.MetricUpdater, useCaseResult.MetricGetter, useCaseResult.HealthService, useCaseResult.Emitter)
+	handlerInitializer := NewHandlerInitializer(a.config, useCaseResult.MetricUpdater, useCaseResult.MetricGetter, useCaseResult.HealthService, useCaseResult.Emitter, infraResult.AuditPublisher)
 	handlerResult := handlerInitializer.Initialize()
 
 	a.server = handlerResult.Server

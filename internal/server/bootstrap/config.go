@@ -9,4 +9,6 @@ type Config interface {
 	GetMigrationsPath() *string
 	GetCountRetrySave() *int
 	GetSecretKey() *string
+	GetAuditFilePath() *string
+	GetAuditServiceURL() *string
 }
