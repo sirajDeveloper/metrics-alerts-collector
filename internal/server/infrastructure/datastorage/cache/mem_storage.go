@@ -33,8 +33,17 @@ func (m *MemStorage) GetMetric(mType, name string) *model.Metrics {
 	if metric == nil {
 		return nil
 	}
-	copyM := *metric
-	return &copyM
+	result := &model.Metrics{
+		ID:    metric.ID,
+		MType: metric.MType,
+	}
+	if metric.Delta != nil {
+		result.Delta = metric.Delta
+	}
+	if metric.Value != nil {
+		result.Value = metric.Value
+	}
+	return result
 }
 
 func (m *MemStorage) Save(metrics *model.Metrics) {
@@ -47,13 +56,27 @@ func (m *MemStorage) Save(metrics *model.Metrics) {
 func (m *MemStorage) GetAll() []*model.Metrics {
 	m.RLock()
 	defer m.RUnlock()
+	if len(m.cache) == 0 {
+		return nil
+	}
 	result := make([]*model.Metrics, 0, len(m.cache))
 	for _, metric := range m.cache {
 		if metric == nil {
 			continue
 		}
-		copyM := *metric
-		result = append(result, &copyM)
+		copyM := &model.Metrics{
+			ID:    metric.ID,
+			MType: metric.MType,
+		}
+		if metric.Delta != nil {
+			delta := *metric.Delta
+			copyM.Delta = &delta
+		}
+		if metric.Value != nil {
+			value := *metric.Value
+			copyM.Value = &value
+		}
+		result = append(result, copyM)
 	}
 	return result
 }

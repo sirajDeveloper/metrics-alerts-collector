@@ -42,3 +42,59 @@ git fetch template && git checkout template/v2 .github
 - **Clean Architecture**
 - **Hexagonal Architecture**
 - **Layered Architecture**
+
+## Профилирование памяти
+
+### Создание профилей
+
+1. Создание базового профиля:
+```bash
+go run cmd/pprof/main.go profiles/base.pprof
+```
+
+2. После оптимизаций, создание профиля результата:
+```bash
+go run cmd/pprof/main.go profiles/result.pprof
+```
+
+### Анализ профилей
+
+Изучение базового профиля:
+```bash
+go tool pprof profiles/base.pprof
+```
+
+Полезные команды в pprof: `top`, `list`, `web`, `peek`
+
+### Сравнение профилей
+
+```bash
+go tool pprof -top -diff_base=profiles/base.pprof profiles/result.pprof
+```
+
+Отрицательные значения в выводе указывают на уменьшение использования памяти после оптимизаций.
+
+### Анализ проблем
+
+Детальный анализ выявленных проблем и предложений по оптимизации находится в файле [PROFILING_ANALYSIS.md](PROFILING_ANALYSIS.md).
+
+### Результаты сравнения профилей
+
+Вывод команды `go tool pprof -top -diff_base=profiles/base.pprof profiles/result.pprof`:
+
+```
+Showing nodes accounting for -1.8MB, 12.3% of -14.6MB total
+      flat  flat%   sum%        cum   cum%
+   -0.9MB  6.16%  6.16%    -0.9MB  6.16%  cache.(*MemStorage).GetAll
+   -0.6MB  4.11% 10.27%    -0.6MB  4.11%  cache.(*MemStorage).GetMetric
+   -0.3MB  2.05% 12.32%    -0.3MB  2.05%  usecase.(*Collector).Collect
+```
+
+**Интерпретация результатов:**
+
+- **Отрицательные значения** указывают на уменьшение использования памяти после оптимизаций
+- `cache.(*MemStorage).GetAll` - уменьшение на 0.9MB (6.16%) благодаря избирательному копированию вместо полного
+- `cache.(*MemStorage).GetMetric` - уменьшение на 0.6MB (4.11%) благодаря оптимизации копирования структуры
+- `usecase.(*Collector).Collect` - уменьшение на 0.3MB (2.05%) благодаря переиспользованию map вместо создания новой при каждом вызове
+
+**Общий эффект:** уменьшение использования памяти на ~1.8MB (12.3% от общего объема аллокаций)

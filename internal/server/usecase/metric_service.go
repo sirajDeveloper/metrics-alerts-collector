@@ -72,18 +72,16 @@ func (s *MetricService) putEvent(metric *model.Metrics) {
 
 func (s *MetricService) GetMetricValue(req *dto.MetricValueRequest) (*dto.MetricValueResponse, error) {
 	metric := s.repo.GetMetric(req.MType, req.ID)
-	resp := dto.MetricValueResponse{
-		ID:    "",
-		MType: "",
+	if metric == nil {
+		return nil, fmt.Errorf("metric not found")
+	}
+
+	resp := &dto.MetricValueResponse{
+		ID:    metric.ID,
+		MType: metric.MType,
 		Delta: nil,
 		Value: nil,
 	}
-	if metric == nil {
-		return &resp, fmt.Errorf("metric not found")
-	}
-
-	resp.ID = metric.ID
-	resp.MType = metric.MType
 
 	switch metric.MType {
 	case "gauge":
@@ -96,7 +94,7 @@ func (s *MetricService) GetMetricValue(req *dto.MetricValueRequest) (*dto.Metric
 		}
 	}
 
-	return &resp, nil
+	return resp, nil
 }
 
 func (s *MetricService) GetAllMetricsForDisplay() []dto.DisplayMetricDTO {
