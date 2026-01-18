@@ -16,8 +16,6 @@
 package main
 
 import (
-	_ "github.com/sirajDeveloper/metrics-alerts-collector/docs"
-
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/logger"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/bootstrap"
 	"go.uber.org/zap"
