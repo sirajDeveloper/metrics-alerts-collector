@@ -7,6 +7,8 @@ import (
 	"io"
 	"net/http/httptest"
 
+	"github.com/go-chi/chi/v5"
+
 	httpHandler "github.com/sirajDeveloper/metrics-alerts-collector/internal/server/handler/http"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/infrastructure/datastorage/cache"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/usecase"
@@ -48,10 +50,13 @@ func ExampleMetricsHandler_UpdateMetricURLParam() {
 	service := usecase.NewMetricService(repo, nil)
 	handler := httpHandler.NewMetricsHandler(service, service, nil)
 
+	router := chi.NewRouter()
+	router.Post("/update/{type}/{name}/{value}", handler.UpdateMetricURLParam)
+
 	req := httptest.NewRequest("POST", "/update/gauge/temperature/25.5", nil)
 	w := httptest.NewRecorder()
 
-	handler.UpdateMetricURLParam(w, req)
+	router.ServeHTTP(w, req)
 
 	resp := w.Result()
 	fmt.Printf("Status: %d\n", resp.StatusCode)
@@ -154,10 +159,13 @@ func ExampleMetricsHandler_GetMetricValueURLParam() {
 
 	handler := httpHandler.NewMetricsHandler(service, service, nil)
 
+	router := chi.NewRouter()
+	router.Get("/value/{type}/{name}", handler.GetMetricValueURLParam)
+
 	req := httptest.NewRequest("GET", "/value/counter/requests", nil)
 	w := httptest.NewRecorder()
 
-	handler.GetMetricValueURLParam(w, req)
+	router.ServeHTTP(w, req)
 
 	resp := w.Result()
 	body, _ := io.ReadAll(resp.Body)
