@@ -16,6 +16,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/shirou/gopsutil/v3 v3.24.5
 	github.com/stretchr/testify v1.11.1
+	github.com/swaggo/http-swagger v1.3.4
 	go.uber.org/zap v1.27.0
 )
 

@@ -10,27 +10,53 @@ import (
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/usecase/dto"
 )
 
+// MetricUpdater определяет интерфейс для обновления метрик.
+// Реализуется MetricService.
 type MetricUpdater interface {
+	// MetricUpdate обновляет или создает метрику.
 	MetricUpdate(req *dto.MetricUpdateRequest) error
 }
 
+// MetricGetter определяет интерфейс для получения метрик.
+// Реализуется MetricService.
 type MetricGetter interface {
+	// GetMetricValue возвращает значение метрики по имени и типу.
 	GetMetricValue(req *dto.MetricValueRequest) (*dto.MetricValueResponse, error)
+	// GetAllMetricsForDisplay возвращает все метрики для отображения.
 	GetAllMetricsForDisplay() []dto.DisplayMetricDTO
 }
 
 var _ MetricUpdater = (*MetricService)(nil)
 var _ MetricGetter = (*MetricService)(nil)
 
+// MetricService реализует бизнес-логику работы с метриками.
+// Обеспечивает создание, обновление и получение метрик.
+// Реализует интерфейсы MetricUpdater и MetricGetter.
 type MetricService struct {
 	repo   repository.MetricRepository
 	sender event.MetricsSender
 }
 
+// NewMetricService создает новый экземпляр MetricService.
+//
+// Параметры:
+//   - repo: репозиторий для хранения метрик
+//   - sender: отправитель событий о метриках (может быть nil)
+//
+// Возвращает новый экземпляр MetricService.
 func NewMetricService(repo repository.MetricRepository, sender event.MetricsSender) *MetricService {
 	return &MetricService{repo: repo, sender: sender}
 }
 
+// MetricUpdate обновляет или создает метрику.
+//
+// Для gauge: устанавливает абсолютное значение.
+// Для counter: добавляет delta к текущему значению.
+//
+// Параметры:
+//   - req: запрос на обновление метрики
+//
+// Возвращает ошибку, если тип метрики неизвестен или данные некорректны.
 func (s *MetricService) MetricUpdate(req *dto.MetricUpdateRequest) error {
 	metric := s.repo.GetMetric(req.MType, req.ID)
 	if metric == nil {
@@ -70,6 +96,12 @@ func (s *MetricService) putEvent(metric *model.Metrics) {
 	s.sender.Send(event.MetricsEvent{Metrics: metric})
 }
 
+// GetMetricValue возвращает значение метрики по имени и типу.
+//
+// Параметры:
+//   - req: запрос на получение метрики
+//
+// Возвращает ответ с данными метрики или ошибку, если метрика не найдена.
 func (s *MetricService) GetMetricValue(req *dto.MetricValueRequest) (*dto.MetricValueResponse, error) {
 	metric := s.repo.GetMetric(req.MType, req.ID)
 	if metric == nil {
@@ -97,6 +129,9 @@ func (s *MetricService) GetMetricValue(req *dto.MetricValueRequest) (*dto.Metric
 	return resp, nil
 }
 
+// GetAllMetricsForDisplay возвращает все метрики в формате для отображения.
+//
+// Возвращает слайс DTO с метриками, где значения представлены в виде строк.
 func (s *MetricService) GetAllMetricsForDisplay() []dto.DisplayMetricDTO {
 	metrics := s.repo.GetAll()
 

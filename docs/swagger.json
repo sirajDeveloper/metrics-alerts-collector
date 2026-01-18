@@ -1,0 +1,334 @@
+{
+    "schemes": [
+        "http",
+        "https"
+    ],
+    "swagger": "2.0",
+    "info": {
+        "description": "API сервера для сбора метрик и алертинга",
+        "title": "Metrics Alerts Collector API",
+        "termsOfService": "http://swagger.io/terms/",
+        "contact": {
+            "name": "API Support",
+            "url": "http://www.swagger.io/support",
+            "email": "support@swagger.io"
+        },
+        "license": {
+            "name": "Apache 2.0",
+            "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+        },
+        "version": "1.0"
+    },
+    "host": "localhost:8080",
+    "basePath": "/",
+    "paths": {
+        "/": {
+            "get": {
+                "description": "Возвращает HTML-страницу со списком всех метрик",
+                "produces": [
+                    "text/html"
+                ],
+                "tags": [
+                    "metrics"
+                ],
+                "summary": "Получить все метрики",
+                "responses": {
+                    "200": {
+                        "description": "HTML страница с метриками",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера"
+                    }
+                }
+            }
+        },
+        "/ping": {
+            "get": {
+                "description": "Проверяет доступность базы данных",
+                "produces": [
+                    "text/plain"
+                ],
+                "tags": [
+                    "health"
+                ],
+                "summary": "Проверка здоровья",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "База данных недоступна"
+                    }
+                }
+            }
+        },
+        "/update": {
+            "post": {
+                "description": "Обновляет или создает метрику из JSON-тела запроса",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "metrics"
+                ],
+                "summary": "Обновить метрику",
+                "parameters": [
+                    {
+                        "description": "Данные метрики",
+                        "name": "metric",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sirajDeveloper_metrics-alerts-collector_internal_server_usecase_dto.MetricUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Метрика успешно обновлена"
+                    },
+                    "400": {
+                        "description": "Некорректный формат запроса"
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера"
+                    }
+                }
+            }
+        },
+        "/update/{type}/{name}/{value}": {
+            "post": {
+                "description": "Обновляет метрику через параметры URL",
+                "tags": [
+                    "metrics"
+                ],
+                "summary": "Обновить метрику через URL",
+                "parameters": [
+                    {
+                        "enum": [
+                            "gauge",
+                            "counter"
+                        ],
+                        "type": "string",
+                        "description": "Тип метрики",
+                        "name": "type",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Имя метрики",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Значение метрики",
+                        "name": "value",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Метрика успешно обновлена"
+                    },
+                    "400": {
+                        "description": "Некорректные параметры"
+                    }
+                }
+            }
+        },
+        "/updates": {
+            "post": {
+                "description": "Обновляет множество метрик из JSON-массива запросов",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "metrics"
+                ],
+                "summary": "Массовое обновление метрик",
+                "parameters": [
+                    {
+                        "description": "Массив метрик",
+                        "name": "metrics",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/github_com_sirajDeveloper_metrics-alerts-collector_internal_server_usecase_dto.MetricUpdateRequest"
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Все метрики успешно обновлены"
+                    },
+                    "400": {
+                        "description": "Некорректный формат запроса"
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера"
+                    }
+                }
+            }
+        },
+        "/value": {
+            "post": {
+                "description": "Возвращает значение метрики в формате JSON",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "metrics"
+                ],
+                "summary": "Получить значение метрики (JSON)",
+                "parameters": [
+                    {
+                        "description": "Запрос метрики",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sirajDeveloper_metrics-alerts-collector_internal_server_usecase_dto.MetricValueRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Значение метрики",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_sirajDeveloper_metrics-alerts-collector_internal_server_usecase_dto.MetricValueResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Метрика не найдена"
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера"
+                    }
+                }
+            }
+        },
+        "/value/{type}/{name}": {
+            "get": {
+                "description": "Возвращает значение метрики в виде строки через URL параметры",
+                "produces": [
+                    "text/plain"
+                ],
+                "tags": [
+                    "metrics"
+                ],
+                "summary": "Получить значение метрики (URL)",
+                "parameters": [
+                    {
+                        "enum": [
+                            "gauge",
+                            "counter"
+                        ],
+                        "type": "string",
+                        "description": "Тип метрики",
+                        "name": "type",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Имя метрики",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Значение метрики",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Метрика не найдена"
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера"
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "github_com_sirajDeveloper_metrics-alerts-collector_internal_server_usecase_dto.MetricUpdateRequest": {
+            "type": "object",
+            "required": [
+                "id",
+                "type"
+            ],
+            "properties": {
+                "delta": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "number"
+                }
+            }
+        },
+        "github_com_sirajDeveloper_metrics-alerts-collector_internal_server_usecase_dto.MetricValueRequest": {
+            "type": "object",
+            "required": [
+                "id",
+                "type"
+            ],
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_sirajDeveloper_metrics-alerts-collector_internal_server_usecase_dto.MetricValueResponse": {
+            "type": "object",
+            "properties": {
+                "delta": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "number"
+                }
+            }
+        }
+    }
+}

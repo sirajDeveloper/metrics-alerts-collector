@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	chiMidware "github.com/go-chi/chi/v5/middleware"
+	httpSwagger "github.com/swaggo/http-swagger"
 
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/domain/event"
 	httpHandler "github.com/sirajDeveloper/metrics-alerts-collector/internal/server/handler/http"
@@ -33,6 +34,10 @@ func NewChiRouter(metricUpdater usecase.MetricUpdater, metricGetter usecase.Metr
 
 	handler := httpHandler.NewMetricsHandler(metricUpdater, metricGetter, auditPublisher)
 	healthHandler := httpHandler.NewHealthHandler(healthChecker)
+
+	r.Get("/swagger/*", httpSwagger.Handler(
+		httpSwagger.URL("http://localhost:8080/swagger/doc.json"),
+	))
 
 	r.Get("/", handler.GetAllMetrics)
 	r.Get("/ping", healthHandler.Ping)

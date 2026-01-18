@@ -26,12 +26,29 @@ import (
 //go:embed templates/*.html
 var templatesFS embed.FS
 
+// MetricsHandler обрабатывает HTTP-запросы для работы с метриками.
+// Поддерживает обновление и получение метрик через JSON и URL параметры.
+// Эндпоинты:
+//   - POST /update - обновление одной метрики (JSON)
+//   - POST /update/{type}/{name}/{value} - обновление метрики через URL параметры
+//   - POST /updates - массовое обновление метрик (JSON)
+//   - POST /value - получение значения метрики (JSON)
+//   - GET /value/{type}/{name} - получение значения метрики через URL параметры
+//   - GET / - получение всех метрик в виде HTML страницы
 type MetricsHandler struct {
 	metricUpdater  usecase.MetricUpdater
 	metricGetter   usecase.MetricGetter
 	auditPublisher event.AuditEventPublisher
 }
 
+// NewMetricsHandler создает новый экземпляр MetricsHandler.
+//
+// Параметры:
+//   - metricUpdater: интерфейс для обновления метрик
+//   - metricGetter: интерфейс для получения метрик
+//   - auditPublisher: издатель аудит-событий (может быть nil)
+//
+// Возвращает новый экземпляр MetricsHandler.
 func NewMetricsHandler(metricUpdater usecase.MetricUpdater, metricGetter usecase.MetricGetter, auditPublisher event.AuditEventPublisher) *MetricsHandler {
 	return &MetricsHandler{
 		metricUpdater:  metricUpdater,
@@ -79,6 +96,28 @@ func (h *MetricsHandler) publishAuditEvent(r *http.Request, metrics []string) {
 	_ = h.auditPublisher.Publish(ctx, auditEvent)
 }
 
+// GetMetricValueURLParam обрабатывает GET /value/{type}/{name}.
+// Возвращает значение метрики в виде строки (text/plain).
+//
+// Параметры URL:
+//   - type: тип метрики ("gauge" или "counter")
+//   - name: имя метрики
+//
+// Ответы:
+//   - 200 OK: значение метрики в виде строки
+//   - 404 Not Found: метрика не найдена
+//   - 500 Internal Server Error: внутренняя ошибка
+//
+// @Summary Получить значение метрики (URL)
+// @Description Возвращает значение метрики в виде строки через URL параметры
+// @Tags metrics
+// @Produce text/plain
+// @Param type path string true "Тип метрики" Enums(gauge, counter)
+// @Param name path string true "Имя метрики"
+// @Success 200 {string} string "Значение метрики"
+// @Failure 404 "Метрика не найдена"
+// @Failure 500 "Внутренняя ошибка сервера"
+// @Router /value/{type}/{name} [get]
 func (h *MetricsHandler) GetMetricValueURLParam(w http.ResponseWriter, r *http.Request) {
 	metricType := chi.URLParam(r, "type")
 	metricName := chi.URLParam(r, "name")
@@ -128,6 +167,27 @@ func (h *MetricsHandler) GetMetricValueURLParam(w http.ResponseWriter, r *http.R
 	}
 }
 
+// UpdateMetricURLParam обрабатывает POST /update/{type}/{name}/{value}.
+// Обновляет метрику через параметры URL.
+//
+// Параметры URL:
+//   - type: тип метрики ("gauge" или "counter")
+//   - name: имя метрики
+//   - value: значение метрики (число в виде строки)
+//
+// Ответы:
+//   - 200 OK: метрика успешно обновлена
+//   - 400 Bad Request: некорректные параметры запроса
+//
+// @Summary Обновить метрику через URL
+// @Description Обновляет метрику через параметры URL
+// @Tags metrics
+// @Param type path string true "Тип метрики" Enums(gauge, counter)
+// @Param name path string true "Имя метрики"
+// @Param value path string true "Значение метрики"
+// @Success 200 "Метрика успешно обновлена"
+// @Failure 400 "Некорректные параметры"
+// @Router /update/{type}/{name}/{value} [post]
 func (h *MetricsHandler) UpdateMetricURLParam(w http.ResponseWriter, r *http.Request) {
 	metricType := chi.URLParam(r, "type")
 	metricName := chi.URLParam(r, "name")
@@ -183,6 +243,39 @@ func (h *MetricsHandler) UpdateMetricURLParam(w http.ResponseWriter, r *http.Req
 	w.WriteHeader(http.StatusOK)
 }
 
+// GetMetricValue обрабатывает POST /value.
+// Возвращает значение метрики в формате JSON.
+//
+// Формат запроса (JSON):
+//
+//	{
+//	  "id": "metricName",
+//	  "type": "gauge"
+//	}
+//
+// Формат ответа (JSON):
+//
+//	{
+//	  "id": "metricName",
+//	  "type": "gauge",
+//	  "value": 123.45
+//	}
+//
+// Ответы:
+//   - 200 OK: успешное получение метрики
+//   - 404 Not Found: метрика не найдена
+//   - 500 Internal Server Error: ошибка при обработке запроса
+//
+// @Summary Получить значение метрики (JSON)
+// @Description Возвращает значение метрики в формате JSON
+// @Tags metrics
+// @Accept json
+// @Produce json
+// @Param request body dto.MetricValueRequest true "Запрос метрики"
+// @Success 200 {object} dto.MetricValueResponse "Значение метрики"
+// @Failure 404 "Метрика не найдена"
+// @Failure 500 "Внутренняя ошибка сервера"
+// @Router /value [post]
 func (h *MetricsHandler) GetMetricValue(w http.ResponseWriter, r *http.Request) {
 	var req dto.MetricValueRequest
 	dec := json.NewDecoder(r.Body)
@@ -211,6 +304,40 @@ func (h *MetricsHandler) GetMetricValue(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
+// UpdateMetric обрабатывает POST /update.
+// Обновляет или создает метрику из JSON-тела запроса.
+//
+// Формат запроса для gauge (JSON):
+//
+//	{
+//	  "id": "metricName",
+//	  "type": "gauge",
+//	  "value": 123.45
+//	}
+//
+// Формат запроса для counter (JSON):
+//
+//	{
+//	  "id": "metricName",
+//	  "type": "counter",
+//	  "delta": 10
+//	}
+//
+// Ответы:
+//   - 200 OK: метрика успешно обновлена
+//   - 400 Bad Request: некорректный формат запроса или данные
+//   - 500 Internal Server Error: ошибка при обработке запроса
+//
+// @Summary Обновить метрику
+// @Description Обновляет или создает метрику из JSON-тела запроса
+// @Tags metrics
+// @Accept json
+// @Produce json
+// @Param metric body dto.MetricUpdateRequest true "Данные метрики"
+// @Success 200 "Метрика успешно обновлена"
+// @Failure 400 "Некорректный формат запроса"
+// @Failure 500 "Внутренняя ошибка сервера"
+// @Router /update [post]
 func (h *MetricsHandler) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 	var req dto.MetricUpdateRequest
 	dec := json.NewDecoder(r.Body)
@@ -228,6 +355,32 @@ func (h *MetricsHandler) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+// UpdateMetrics обрабатывает POST /updates.
+// Обновляет множество метрик из JSON-массива запросов.
+//
+// Формат запроса (JSON массив):
+//
+//	[
+//	  {"id": "cpu", "type": "gauge", "value": 45.2},
+//	  {"id": "memory", "type": "gauge", "value": 78.5},
+//	  {"id": "requests", "type": "counter", "delta": 100}
+//	]
+//
+// Ответы:
+//   - 200 OK: все метрики успешно обновлены
+//   - 400 Bad Request: некорректный формат запроса или данных
+//   - 500 Internal Server Error: ошибка при обработке запроса
+//
+// @Summary Массовое обновление метрик
+// @Description Обновляет множество метрик из JSON-массива запросов
+// @Tags metrics
+// @Accept json
+// @Produce json
+// @Param metrics body []dto.MetricUpdateRequest true "Массив метрик"
+// @Success 200 "Все метрики успешно обновлены"
+// @Failure 400 "Некорректный формат запроса"
+// @Failure 500 "Внутренняя ошибка сервера"
+// @Router /updates [post]
 func (h *MetricsHandler) UpdateMetrics(w http.ResponseWriter, r *http.Request) {
 	var reqs []dto.MetricUpdateRequest
 	dec := json.NewDecoder(r.Body)
@@ -292,6 +445,20 @@ func (h *MetricsHandler) processMetricUpdate(req *dto.MetricUpdateRequest, w htt
 	return nil
 }
 
+// GetAllMetrics обрабатывает GET /.
+// Возвращает HTML-страницу со списком всех метрик.
+//
+// Ответы:
+//   - 200 OK: HTML-страница со списком метрик
+//   - 500 Internal Server Error: ошибка при генерации страницы
+//
+// @Summary Получить все метрики
+// @Description Возвращает HTML-страницу со списком всех метрик
+// @Tags metrics
+// @Produce text/html
+// @Success 200 {string} string "HTML страница с метриками"
+// @Failure 500 "Внутренняя ошибка сервера"
+// @Router / [get]
 func (h *MetricsHandler) GetAllMetrics(w http.ResponseWriter, r *http.Request) {
 	displayMetrics := h.metricGetter.GetAllMetricsForDisplay()
 
