@@ -189,7 +189,7 @@ func TestMetricService_MetricUpdate(t *testing.T) {
 				mockSender.On("Send", mock.Anything).Return()
 			}
 
-			service := NewMetricService(mockRepo, mockSender)
+			service := NewMetricService(mockRepo, mockSender, nil)
 
 			err := service.MetricUpdate(tt.request)
 
@@ -214,7 +214,7 @@ func TestMetricService_MetricUpdate(t *testing.T) {
 func TestNewMetricService(t *testing.T) {
 	mockRepo := new(MockRepository)
 	mockSender := new(MockSender)
-	service := NewMetricService(mockRepo, mockSender)
+	service := NewMetricService(mockRepo, mockSender, nil)
 
 	assert.NotNil(t, service, "Сервис не должен быть nil")
 	assert.Implements(t, (*MetricUpdater)(nil), service, "Сервис должен реализовывать интерфейс MetricUpdater")

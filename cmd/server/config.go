@@ -16,6 +16,8 @@ func parseConfig() (*Config, error) {
 	var flagMigrationsPath string
 	var flagCountRetrySave int
 	var flagSecretKey string
+	var flagAuditFilePath string
+	var flagAuditServiceURL string
 
 	flag.StringVar(&flagAddress, "a", "localhost:8080", "address and port to run server")
 	flag.IntVar(&flagStoreInterval, "i", 300, "store interval seconds (0 = sync)")
@@ -25,6 +27,8 @@ func parseConfig() (*Config, error) {
 	flag.StringVar(&flagMigrationsPath, "m", "./migrations", "migrations directory")
 	flag.IntVar(&flagCountRetrySave, "retry", 3, "count of retry attempts for database save")
 	flag.StringVar(&flagSecretKey, "k", "", "secret key for signature")
+	flag.StringVar(&flagAuditFilePath, "audit-file", "./audit/audit.log", "audit file path")
+	flag.StringVar(&flagAuditServiceURL, "audit-service", "", "external audit service URL")
 	flag.Parse()
 
 	_ = godotenv.Load(".env")
@@ -60,6 +64,8 @@ func parseConfig() (*Config, error) {
 	if cfg.SecretKey == nil {
 		cfg.SecretKey = &flagSecretKey
 	}
+	cfg.AuditFilePath = optionalString(cfg.AuditFilePath, flagAuditFilePath)
+	cfg.AuditServiceURL = optionalString(cfg.AuditServiceURL, flagAuditServiceURL)
 
 	return cfg, nil
 }
@@ -73,6 +79,8 @@ type Config struct {
 	MigrationsPath  *string `env:"MIGRATIONS_PATH"`
 	CountRetrySave  *int    `env:"COUNT_RETRY_SAVE"`
 	SecretKey       *string `env:"KEY"`
+	AuditFilePath   *string `env:"AUDIT_FILE_PATH"`
+	AuditServiceURL *string `env:"AUDIT_SERVICE_URL"`
 }
 
 func (c *Config) GetAddress() *string {
@@ -104,6 +112,14 @@ func (c *Config) GetCountRetrySave() *int {
 }
 func (c *Config) GetSecretKey() *string {
 	return c.SecretKey
+}
+
+func (c *Config) GetAuditFilePath() *string {
+	return c.AuditFilePath
+}
+
+func (c *Config) GetAuditServiceURL() *string {
+	return c.AuditServiceURL
 }
 
 func optionalString(current *string, fallback string) *string {

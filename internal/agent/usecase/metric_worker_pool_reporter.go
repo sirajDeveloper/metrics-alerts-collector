@@ -20,17 +20,19 @@ func NewMetricWorkerPoolReporter(sender MetricSender, workerCount int) *MetricWo
 		workerCount: workerCount,
 	}
 
-	for i := 0; i < workerCount; i++ {
-		reporter.wg.Add(1)
+	return reporter
+}
+
+func (r *MetricWorkerPoolReporter) Start() {
+	for i := 0; i < r.workerCount; i++ {
+		r.wg.Add(1)
 		go func() {
-			defer reporter.wg.Done()
-			for metric := range reporter.metricsChan {
-				reporter.sender.Send(&metric)
+			defer r.wg.Done()
+			for metric := range r.metricsChan {
+				r.sender.Send(&metric)
 			}
 		}()
 	}
-
-	return reporter
 }
 
 var _ MetricsReporter = (*MetricWorkerPoolReporter)(nil)

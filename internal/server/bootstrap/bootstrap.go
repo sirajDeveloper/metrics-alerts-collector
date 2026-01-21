@@ -40,10 +40,10 @@ func (a *App) Initialize() error {
 
 	a.db = infraResult.DB
 
-	useCaseInitializer := NewUseCaseInitializer(a.config, infraResult.MetricRepository, infraResult.FileStorage, infraResult.HealthChecker)
+	useCaseInitializer := NewUseCaseInitializer(a.config, infraResult.MetricRepository, infraResult.FileStorage, infraResult.HealthChecker, infraResult.AuditPublisher)
 	useCaseResult := useCaseInitializer.Initialize()
 
-	handlerInitializer := NewHandlerInitializer(a.config, useCaseResult.MetricUpdater, useCaseResult.MetricGetter, useCaseResult.HealthService, useCaseResult.Emitter)
+	handlerInitializer := NewHandlerInitializer(a.config, useCaseResult.MetricUpdater, useCaseResult.MetricGetter, useCaseResult.HealthService, useCaseResult.Emitter, infraResult.AuditPublisher)
 	handlerResult := handlerInitializer.Initialize()
 
 	a.server = handlerResult.Server

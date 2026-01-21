@@ -24,6 +24,7 @@ func main() {
 	fmt.Printf("HTTPSender init with serverURL: %v\n", serverURL)
 	fmt.Printf("Rate limit: %d concurrent requests\n", rateLimit)
 	reporter := usecase.NewMetricWorkerPoolReporter(sender, rateLimit)
+	reporter.Start()
 	//reporter := usecase.NewMetricLoopReporter(sender)
 	collector := usecase.NewCollector(reporter)
 

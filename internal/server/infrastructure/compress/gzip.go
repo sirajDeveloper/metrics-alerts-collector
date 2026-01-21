@@ -16,32 +16,40 @@ const (
 	ContentTypeHTML     = "text/html"
 )
 
-type gzipReader struct {
+var _ io.ReadCloser = (*GzipReader)(nil)
+
+type GzipReader struct {
 	io.ReadCloser
 	reader *gzip.Reader
 }
 
-func (gr *gzipReader) Read(p []byte) (int, error) {
+func (gr *GzipReader) Read(p []byte) (int, error) {
 	return gr.reader.Read(p)
 }
 
-func (gr *gzipReader) Close() error {
+func (gr *GzipReader) Close() error {
 	if err := gr.ReadCloser.Close(); err != nil {
 		return err
 	}
 	return gr.reader.Close()
 }
 
-func NewGzipReader(r io.ReadCloser) (*gzipReader, error) {
+func NewGzipReader(r io.ReadCloser) (*GzipReader, error) {
 	reader, err := gzip.NewReader(r)
 	if err != nil {
 		return nil, err
 	}
-	return &gzipReader{
+	return &GzipReader{
 		r,
 		reader,
 	}, nil
 }
+
+var (
+	_ http.ResponseWriter = (*GzipWriter)(nil)
+	_ io.Writer           = (*GzipWriter)(nil)
+	_ io.Closer           = (*GzipWriter)(nil)
+)
 
 type GzipWriter struct {
 	http.ResponseWriter

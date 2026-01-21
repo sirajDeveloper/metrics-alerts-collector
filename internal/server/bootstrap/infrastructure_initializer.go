@@ -11,6 +11,8 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/logger"
+	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/domain/event"
+	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/infrastructure/audit"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/infrastructure/datastorage/cache"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/infrastructure/datastorage/database"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/infrastructure/datastorage/file"
@@ -31,23 +33,45 @@ type InfrastructureResult struct {
 	MetricRepository repository.MetricRepository
 	FileStorage      repository.MetricFileStorage
 	HealthChecker    usecase.DatabaseHealthChecker
+	AuditPublisher   event.AuditEventPublisher
 	DB               *sqlx.DB
 }
 
 func (i *InfrastructureInitializer) Initialize() (*InfrastructureResult, error) {
 	fileStorage := file.NewJSONFileStorage(*i.config.GetFileStoragePath())
 
+	var result *InfrastructureResult
 	if i.config.GetDatabaseDSN() != nil {
-		result, err := i.initDatabaseStorage()
+		dbResult, err := i.initDatabaseStorage()
 		if err != nil {
 			logger.Log.Warn("Failed to initialize database, falling back to memory storage", zap.Error(err))
-			return i.initMemoryStorage(fileStorage), nil
+			result = i.initMemoryStorage(fileStorage)
+		} else {
+			result = dbResult
+			result.FileStorage = fileStorage
 		}
-		result.FileStorage = fileStorage
-		return result, nil
+	} else {
+		result = i.initMemoryStorage(fileStorage)
 	}
 
-	return i.initMemoryStorage(fileStorage), nil
+	auditPublisher := audit.NewAuditEventPublisher()
+
+	if i.config.GetAuditFilePath() != nil && *i.config.GetAuditFilePath() != "" {
+		fileObserver, err := audit.NewFileAuditObserver(*i.config.GetAuditFilePath())
+		if err != nil {
+			logger.Log.Warn("Failed to create file audit observer", zap.Error(err))
+		} else {
+			auditPublisher.Subscribe(fileObserver)
+		}
+	}
+
+	if i.config.GetAuditServiceURL() != nil && *i.config.GetAuditServiceURL() != "" {
+		externalObserver := audit.NewExternalAuditObserver(*i.config.GetAuditServiceURL())
+		auditPublisher.Subscribe(externalObserver)
+	}
+
+	result.AuditPublisher = auditPublisher
+	return result, nil
 }
 
 func (i *InfrastructureInitializer) initDatabaseStorage() (*InfrastructureResult, error) {
@@ -86,6 +110,7 @@ func (i *InfrastructureInitializer) initMemoryStorage(fileStorage *file.JSONFile
 		MetricRepository: cache.NewMemStorage(),
 		FileStorage:      fileStorage,
 		HealthChecker:    nil,
+		AuditPublisher:   nil,
 		DB:               nil,
 	}
 }
