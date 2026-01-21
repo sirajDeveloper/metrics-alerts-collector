@@ -21,7 +21,7 @@ func main() {
 	serverURL := "http://" + address
 	sender := infrastructure.NewHTTPSender(serverURL)
 	fmt.Printf("HTTPSender init with serverURL: %v\n", serverURL)
-	reporter := usecase.NewMetricBatchReporter(sender)
+	reporter := usecase.NewMetricLoopReporter(sender)
 	collector := usecase.NewCollector(reporter)
 
 	ctx, cancel := context.WithCancel(context.Background())
