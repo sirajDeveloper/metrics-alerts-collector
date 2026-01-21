@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 
 	"github.com/caarlos0/env/v6"
 	"github.com/joho/godotenv"
@@ -14,12 +13,14 @@ func parseConfig() (*Config, error) {
 	var flagFileStoragePath string
 	var flagRestore bool
 	var flagDatabaseDSN string
+	var flagMigrationsPath string
 
 	flag.StringVar(&flagAddress, "a", "localhost:8080", "address and port to run server")
 	flag.IntVar(&flagStoreInterval, "i", 300, "store interval seconds (0 = sync)")
 	flag.StringVar(&flagFileStoragePath, "f", "./metrics.json", "file storage path")
 	flag.BoolVar(&flagRestore, "r", true, "restore saved values on start")
 	flag.StringVar(&flagDatabaseDSN, "d", "", "database connection string")
+	flag.StringVar(&flagMigrationsPath, "m", "./migrations", "migrations directory")
 	flag.Parse()
 
 	_ = godotenv.Load(".env")
@@ -43,11 +44,11 @@ func parseConfig() (*Config, error) {
 	if cfg.Restore == nil {
 		cfg.Restore = &flagRestore
 	}
-	if (cfg.DatabaseDSN == nil || *cfg.DatabaseDSN == "") && flagDatabaseDSN != "" {
-		cfg.DatabaseDSN = &flagDatabaseDSN
-	}
-	if cfg.DatabaseDSN == nil || *cfg.DatabaseDSN == "" {
-		return nil, fmt.Errorf("database dsn is required")
+	cfg.DatabaseDSN = optionalString(cfg.DatabaseDSN, flagDatabaseDSN)
+	if cfg.DatabaseDSN != nil {
+		cfg.MigrationsPath = optionalString(cfg.MigrationsPath, flagMigrationsPath)
+	} else {
+		cfg.MigrationsPath = nil
 	}
 
 	return cfg, nil
@@ -59,4 +60,16 @@ type Config struct {
 	FileStoragePath *string `env:"FILE_STORAGE_PATH"`
 	Restore         *bool   `env:"RESTORE"`
 	DatabaseDSN     *string `env:"DATABASE_DSN"`
+	MigrationsPath  *string `env:"MIGRATIONS_PATH"`
+}
+
+func optionalString(current *string, fallback string) *string {
+	if current != nil && *current != "" {
+		return current
+	}
+	if fallback == "" {
+		return nil
+	}
+	value := fallback
+	return &value
 }

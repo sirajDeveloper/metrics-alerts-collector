@@ -3,6 +3,7 @@ package http
 import (
 	"embed"
 	"encoding/json"
+	"errors"
 	"strconv"
 
 	"html/template"
@@ -171,41 +172,67 @@ func (h *MetricsHandler) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := h.processMetricUpdate(&req, w); err != nil {
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func (h *MetricsHandler) UpdateMetrics(w http.ResponseWriter, r *http.Request) {
+	var reqs []dto.MetricUpdateRequest
+	dec := json.NewDecoder(r.Body)
+	if err := dec.Decode(&reqs); err != nil {
+		logger.Log.Error("UpdateMetrics decode error", zap.Error(err))
+		http.Error(w, "cannot decode request JSON body", http.StatusInternalServerError)
+		return
+	}
+
+	for i := range reqs {
+		if err := h.processMetricUpdate(&reqs[i], w); err != nil {
+			return
+		}
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func (h *MetricsHandler) processMetricUpdate(req *dto.MetricUpdateRequest, w http.ResponseWriter) error {
 	if req.MType != "counter" && req.MType != "gauge" {
 		logger.Log.Error("UpdateMetric unknown type", zap.String("type", req.MType))
 		http.Error(w, "Unknown metric type", http.StatusBadRequest)
-		return
+		return errors.New("unknown metric type")
 	}
 
 	if req.ID == "" {
 		logger.Log.Error("UpdateMetric name required")
 		http.Error(w, "Metric name is required", http.StatusBadRequest)
-		return
+		return errors.New("metric name is required")
 	}
 
 	if req.MType == "gauge" && req.Value == nil {
 		logger.Log.Error("UpdateMetric gauge required")
 		http.Error(w, "Gauge value is required", http.StatusBadRequest)
-		return
+		return errors.New("gauge value is required")
 	}
 
 	if req.MType == "counter" && req.Delta == nil {
 		logger.Log.Error("UpdateMetric counter required")
 		http.Error(w, "Counter delta is required", http.StatusBadRequest)
-		return
+		return errors.New("counter delta is required")
 	}
 
 	if logger.Log != nil {
 		logger.Log.Info("UpdateMetric", zap.Any("requestBody", req))
 	}
 
-	if err := h.metricUpdater.MetricUpdate(&req); err != nil {
+	if err := h.metricUpdater.MetricUpdate(req); err != nil {
 		logger.Log.Error("UpdateMetric update error", zap.Any("request", req), zap.Error(err))
 		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+		return err
 	}
 
-	w.WriteHeader(http.StatusOK)
+	return nil
 }
 
 func (h *MetricsHandler) GetAllMetrics(w http.ResponseWriter, r *http.Request) {

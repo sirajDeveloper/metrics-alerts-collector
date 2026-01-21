@@ -9,6 +9,10 @@ import (
 	"syscall"
 	"time"
 
+	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/jmoiron/sqlx"
+	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/domain/repository"
+
 	"go.uber.org/zap"
 
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/logger"
@@ -36,24 +40,37 @@ func main() {
 
 	fileStorage := file.NewJSONFileStorage(*cfg.FileStoragePath)
 
-	dbCtx, cancelDB := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancelDB()
-	postgres, err := database.NewPostgres(dbCtx, *cfg.DatabaseDSN)
-	if err != nil {
-		logger.Log.Fatal("Failed to initialize database", zap.String("error", err.Error()))
-	}
-	defer postgres.Close()
+	var metricRepo repository.MetricRepository = cache.NewMemStorage()
 
-	/*if err := postgres.Ping(context.Background()); err != nil {
-		logger.Log.Fatal("Database ping failed", zap.String("error", err.Error()))
+	var healthChecker usecase.DatabaseHealthChecker
+	if cfg.DatabaseDSN != nil {
+		if cfg.MigrationsPath != nil {
+			if migrationRunner, migErr := database.NewMigrationRunner(*cfg.MigrationsPath, *cfg.DatabaseDSN); migErr != nil {
+				logger.Log.Error("Failed to initialize migrations", zap.Error(migErr))
+			} else if migErr = migrationRunner.Up(context.Background()); migErr != nil {
+				logger.Log.Error("Failed to apply migrations", zap.Error(migErr))
+			}
+		}
+
+		dbCtx, cancelDB := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancelDB()
+
+		db, err := sqlx.ConnectContext(dbCtx, "pgx", *cfg.DatabaseDSN)
+		if err != nil {
+			logger.Log.Error("Failed to initialize database", zap.Error(err))
+		} else {
+			defer db.Close()
+
+			mPostgresRepo := database.NewMetricsPostgresRepository(db)
+			metricRepo = mPostgresRepo
+			healthChecker = database.NewDBhealthCheckImpl(db)
+		}
 	}
-	*/
-	metricRepo := cache.NewMemStorage()
 
 	emitter := usecase.NewMetricsEmitterService(fileStorage, metricRepo, *cfg.StoreInterval)
 
 	metricService := usecase.NewMetricService(metricRepo, emitter)
-	healthService := usecase.NewHealthService(postgres)
+	healthService := usecase.NewHealthService(healthChecker)
 
 	emitStarter := scheduler.NewMetricEmitterScheduler(emitter, *cfg.StoreInterval, *cfg.Restore)
 
