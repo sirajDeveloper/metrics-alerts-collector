@@ -1,8 +1,10 @@
 package usecase
 
 import (
+	"context"
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/domain/event"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/domain/model"
@@ -33,8 +35,9 @@ var _ MetricGetter = (*MetricService)(nil)
 // Обеспечивает создание, обновление и получение метрик.
 // Реализует интерфейсы MetricUpdater и MetricGetter.
 type MetricService struct {
-	repo   repository.MetricRepository
-	sender event.MetricsSender
+	repo           repository.MetricRepository
+	sender         event.MetricsSender
+	auditPublisher event.AuditEventPublisher
 }
 
 // NewMetricService создает новый экземпляр MetricService.
@@ -44,8 +47,12 @@ type MetricService struct {
 //   - sender: отправитель событий о метриках (может быть nil)
 //
 // Возвращает новый экземпляр MetricService.
-func NewMetricService(repo repository.MetricRepository, sender event.MetricsSender) *MetricService {
-	return &MetricService{repo: repo, sender: sender}
+func NewMetricService(repo repository.MetricRepository, sender event.MetricsSender, auditPublisher event.AuditEventPublisher) *MetricService {
+	return &MetricService{
+		repo:           repo,
+		sender:         sender,
+		auditPublisher: auditPublisher,
+	}
 }
 
 // MetricUpdate обновляет или создает метрику.
@@ -86,6 +93,7 @@ func (s *MetricService) MetricUpdate(req *dto.MetricUpdateRequest) error {
 	}
 	s.repo.Save(metric)
 	s.putEvent(metric)
+	s.publishAuditEvent(req.IPAddress, []string{req.ID})
 	return nil
 }
 
@@ -94,6 +102,21 @@ func (s *MetricService) putEvent(metric *model.Metrics) {
 		return
 	}
 	s.sender.Send(event.MetricsEvent{Metrics: metric})
+}
+
+func (s *MetricService) publishAuditEvent(ipAddress string, metrics []string) {
+	if s.auditPublisher == nil || len(metrics) == 0 {
+		return
+	}
+
+	auditEvent := &model.AuditEvent{
+		TS:        time.Now().Unix(),
+		Metrics:   metrics,
+		IPAddress: ipAddress,
+	}
+
+	ctx := context.Background()
+	_ = s.auditPublisher.Publish(ctx, auditEvent)
 }
 
 // GetMetricValue возвращает значение метрики по имени и типу.

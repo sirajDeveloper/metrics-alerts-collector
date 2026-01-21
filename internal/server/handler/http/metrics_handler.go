@@ -1,14 +1,12 @@
 package http
 
 import (
-	"context"
 	"embed"
 	"encoding/json"
 	"errors"
 	"net"
 	"strconv"
 	"strings"
-	"time"
 
 	"html/template"
 	"net/http"
@@ -17,8 +15,6 @@ import (
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/logger"
 	"go.uber.org/zap"
 
-	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/domain/event"
-	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/domain/model"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/usecase"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/usecase/dto"
 )
@@ -36,9 +32,8 @@ var templatesFS embed.FS
 //   - GET /value/{type}/{name} - получение значения метрики через URL параметры
 //   - GET / - получение всех метрик в виде HTML страницы
 type MetricsHandler struct {
-	metricUpdater  usecase.MetricUpdater
-	metricGetter   usecase.MetricGetter
-	auditPublisher event.AuditEventPublisher
+	metricUpdater usecase.MetricUpdater
+	metricGetter  usecase.MetricGetter
 }
 
 // NewMetricsHandler создает новый экземпляр MetricsHandler.
@@ -46,14 +41,12 @@ type MetricsHandler struct {
 // Параметры:
 //   - metricUpdater: интерфейс для обновления метрик
 //   - metricGetter: интерфейс для получения метрик
-//   - auditPublisher: издатель аудит-событий (может быть nil)
 //
 // Возвращает новый экземпляр MetricsHandler.
-func NewMetricsHandler(metricUpdater usecase.MetricUpdater, metricGetter usecase.MetricGetter, auditPublisher event.AuditEventPublisher) *MetricsHandler {
+func NewMetricsHandler(metricUpdater usecase.MetricUpdater, metricGetter usecase.MetricGetter) *MetricsHandler {
 	return &MetricsHandler{
-		metricUpdater:  metricUpdater,
-		metricGetter:   metricGetter,
-		auditPublisher: auditPublisher,
+		metricUpdater: metricUpdater,
+		metricGetter:  metricGetter,
 	}
 }
 
@@ -74,26 +67,6 @@ func (h *MetricsHandler) getIPAddress(r *http.Request) string {
 		return r.RemoteAddr
 	}
 	return ip
-}
-
-func (h *MetricsHandler) publishAuditEvent(r *http.Request, metrics []string) {
-	if h.auditPublisher == nil || len(metrics) == 0 {
-		return
-	}
-
-	ipAddress := h.getIPAddress(r)
-	auditEvent := &model.AuditEvent{
-		TS:        time.Now().Unix(),
-		Metrics:   metrics,
-		IPAddress: ipAddress,
-	}
-
-	ctx := r.Context()
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
-	_ = h.auditPublisher.Publish(ctx, auditEvent)
 }
 
 // GetMetricValueURLParam обрабатывает GET /value/{type}/{name}.
@@ -214,6 +187,7 @@ func (h *MetricsHandler) UpdateMetricURLParam(w http.ResponseWriter, r *http.Req
 	var req dto.MetricUpdateRequest
 	req.ID = metricName
 	req.MType = metricType
+	req.IPAddress = h.getIPAddress(r)
 
 	switch metricType {
 	case "gauge":
@@ -239,7 +213,6 @@ func (h *MetricsHandler) UpdateMetricURLParam(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	h.publishAuditEvent(r, []string{req.ID})
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -347,11 +320,12 @@ func (h *MetricsHandler) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	req.IPAddress = h.getIPAddress(r)
+
 	if err := h.processMetricUpdate(&req, w); err != nil {
 		return
 	}
 
-	h.publishAuditEvent(r, []string{req.ID})
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -390,20 +364,14 @@ func (h *MetricsHandler) UpdateMetrics(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	metricsSet := make(map[string]bool)
+	ipAddress := h.getIPAddress(r)
 	for i := range reqs {
+		reqs[i].IPAddress = ipAddress
 		if err := h.processMetricUpdate(&reqs[i], w); err != nil {
 			return
 		}
-		metricsSet[reqs[i].ID] = true
 	}
 
-	metrics := make([]string, 0, len(metricsSet))
-	for metric := range metricsSet {
-		metrics = append(metrics, metric)
-	}
-
-	h.publishAuditEvent(r, metrics)
 	w.WriteHeader(http.StatusOK)
 }
 

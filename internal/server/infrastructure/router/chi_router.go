@@ -32,7 +32,7 @@ func NewChiRouter(metricUpdater usecase.MetricUpdater, metricGetter usecase.Metr
 		r.Use(customMidWare.ResponseSignatureAdd(secretKey))
 	}
 
-	handler := httpHandler.NewMetricsHandler(metricUpdater, metricGetter, auditPublisher)
+	handler := httpHandler.NewMetricsHandler(metricUpdater, metricGetter)
 	healthHandler := httpHandler.NewHealthHandler(healthChecker)
 
 	r.Get("/swagger/*", httpSwagger.Handler(

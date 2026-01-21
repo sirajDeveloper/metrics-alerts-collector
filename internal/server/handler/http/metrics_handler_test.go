@@ -68,7 +68,7 @@ func (m *mockMetricUpdater) GetAllMetricsForDisplay() []dto.DisplayMetricDTO {
 
 func TestNewMetricsHandler(t *testing.T) {
 	mock := &mockMetricUpdater{}
-	handler := NewMetricsHandler(mock, mock, nil)
+	handler := NewMetricsHandler(mock, mock)
 
 	if handler == nil {
 		t.Fatal("expected non-nil handler")
@@ -98,7 +98,7 @@ func TestGetMetricValue_Success_Counter(t *testing.T) {
 		},
 	}
 
-	handler := NewMetricsHandler(mock, mock, nil)
+	handler := NewMetricsHandler(mock, mock)
 
 	requestBody := dto.MetricValueRequest{
 		ID:    "testCounter",
@@ -157,7 +157,7 @@ func TestGetMetricValue_Success_Gauge(t *testing.T) {
 		},
 	}
 
-	handler := NewMetricsHandler(mock, mock, nil)
+	handler := NewMetricsHandler(mock, mock)
 
 	requestBody := dto.MetricValueRequest{
 		ID:    "testGauge",
@@ -201,7 +201,7 @@ func TestGetMetricValue_NotFound(t *testing.T) {
 		},
 	}
 
-	handler := NewMetricsHandler(mock, mock, nil)
+	handler := NewMetricsHandler(mock, mock)
 
 	requestBody := dto.MetricValueRequest{
 		ID:    "unknown",
@@ -233,7 +233,7 @@ func TestGetAllMetrics_Success(t *testing.T) {
 		},
 	}
 
-	handler := NewMetricsHandler(mock, mock, nil)
+	handler := NewMetricsHandler(mock, mock)
 
 	router := chi.NewRouter()
 	router.Get("/", handler.GetAllMetrics)
@@ -271,7 +271,7 @@ func TestGetAllMetrics_Empty(t *testing.T) {
 		},
 	}
 
-	handler := NewMetricsHandler(mock, mock, nil)
+	handler := NewMetricsHandler(mock, mock)
 
 	router := chi.NewRouter()
 	router.Get("/", handler.GetAllMetrics)
@@ -288,7 +288,7 @@ func TestGetAllMetrics_Empty(t *testing.T) {
 
 func TestUpdateMetric_UnknownType(t *testing.T) {
 	mock := &mockMetricUpdater{}
-	handler := NewMetricsHandler(mock, mock, nil)
+	handler := NewMetricsHandler(mock, mock)
 
 	requestBody := dto.MetricUpdateRequest{
 		ID:    "testMetric",
@@ -320,7 +320,7 @@ func TestUpdateMetric_Counter_Success(t *testing.T) {
 		},
 	}
 
-	handler := NewMetricsHandler(mock, mock, nil)
+	handler := NewMetricsHandler(mock, mock)
 
 	delta := int64(100)
 	requestBody := dto.MetricUpdateRequest{
@@ -354,7 +354,7 @@ func TestUpdateMetric_Gauge_Success(t *testing.T) {
 		},
 	}
 
-	handler := NewMetricsHandler(mock, mock, nil)
+	handler := NewMetricsHandler(mock, mock)
 
 	value := 123.45
 	requestBody := dto.MetricUpdateRequest{

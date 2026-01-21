@@ -17,8 +17,8 @@ import (
 
 func ExampleMetricsHandler_UpdateMetric() {
 	repo := cache.NewMemStorage()
-	service := usecase.NewMetricService(repo, nil)
-	handler := httpHandler.NewMetricsHandler(service, service, nil)
+	service := usecase.NewMetricService(repo, nil, nil)
+	handler := httpHandler.NewMetricsHandler(service, service)
 
 	reqBody := dto.MetricUpdateRequest{
 		ID:    "temperature",
@@ -47,8 +47,8 @@ func ExampleMetricsHandler_UpdateMetric() {
 
 func ExampleMetricsHandler_UpdateMetricURLParam() {
 	repo := cache.NewMemStorage()
-	service := usecase.NewMetricService(repo, nil)
-	handler := httpHandler.NewMetricsHandler(service, service, nil)
+	service := usecase.NewMetricService(repo, nil, nil)
+	handler := httpHandler.NewMetricsHandler(service, service)
 
 	router := chi.NewRouter()
 	router.Post("/update/{type}/{name}/{value}", handler.UpdateMetricURLParam)
@@ -67,8 +67,8 @@ func ExampleMetricsHandler_UpdateMetricURLParam() {
 
 func ExampleMetricsHandler_UpdateMetrics() {
 	repo := cache.NewMemStorage()
-	service := usecase.NewMetricService(repo, nil)
-	handler := httpHandler.NewMetricsHandler(service, service, nil)
+	service := usecase.NewMetricService(repo, nil, nil)
+	handler := httpHandler.NewMetricsHandler(service, service)
 
 	reqs := []dto.MetricUpdateRequest{
 		{
@@ -101,7 +101,7 @@ func ExampleMetricsHandler_UpdateMetrics() {
 
 func ExampleMetricsHandler_GetMetricValue() {
 	repo := cache.NewMemStorage()
-	service := usecase.NewMetricService(repo, nil)
+	service := usecase.NewMetricService(repo, nil, nil)
 
 	metric := dto.MetricUpdateRequest{
 		ID:    "temperature",
@@ -111,7 +111,7 @@ func ExampleMetricsHandler_GetMetricValue() {
 	metric.Value = &value
 	_ = service.MetricUpdate(&metric)
 
-	handler := httpHandler.NewMetricsHandler(service, service, nil)
+	handler := httpHandler.NewMetricsHandler(service, service)
 
 	reqBody := dto.MetricValueRequest{
 		ID:    "temperature",
@@ -147,7 +147,7 @@ func ExampleMetricsHandler_GetMetricValue() {
 
 func ExampleMetricsHandler_GetMetricValueURLParam() {
 	repo := cache.NewMemStorage()
-	service := usecase.NewMetricService(repo, nil)
+	service := usecase.NewMetricService(repo, nil, nil)
 
 	metric := dto.MetricUpdateRequest{
 		ID:    "requests",
@@ -157,7 +157,7 @@ func ExampleMetricsHandler_GetMetricValueURLParam() {
 	metric.Delta = &delta
 	_ = service.MetricUpdate(&metric)
 
-	handler := httpHandler.NewMetricsHandler(service, service, nil)
+	handler := httpHandler.NewMetricsHandler(service, service)
 
 	router := chi.NewRouter()
 	router.Get("/value/{type}/{name}", handler.GetMetricValueURLParam)
@@ -180,7 +180,7 @@ func ExampleMetricsHandler_GetMetricValueURLParam() {
 
 func ExampleMetricsHandler_GetAllMetrics() {
 	repo := cache.NewMemStorage()
-	service := usecase.NewMetricService(repo, nil)
+	service := usecase.NewMetricService(repo, nil, nil)
 
 	metrics := []dto.MetricUpdateRequest{
 		{ID: "cpu", MType: "gauge"},
@@ -198,7 +198,7 @@ func ExampleMetricsHandler_GetAllMetrics() {
 		_ = service.MetricUpdate(&m)
 	}
 
-	handler := httpHandler.NewMetricsHandler(service, service, nil)
+	handler := httpHandler.NewMetricsHandler(service, service)
 
 	req := httptest.NewRequest("GET", "/", nil)
 	w := httptest.NewRecorder()

@@ -10,7 +10,7 @@ import (
 
 func BenchmarkMetricService_MetricUpdate(b *testing.B) {
 	repo := cache.NewMemStorage()
-	service := NewMetricService(repo, nil)
+	service := NewMetricService(repo, nil, nil)
 
 	req := &dto.MetricUpdateRequest{
 		ID:    "testMetric",
@@ -27,7 +27,7 @@ func BenchmarkMetricService_MetricUpdate(b *testing.B) {
 
 func BenchmarkMetricService_GetMetricValue(b *testing.B) {
 	repo := cache.NewMemStorage()
-	service := NewMetricService(repo, nil)
+	service := NewMetricService(repo, nil, nil)
 
 	metric := model.CreateMetric("testMetric", "gauge")
 	val := 123.45
@@ -47,7 +47,7 @@ func BenchmarkMetricService_GetMetricValue(b *testing.B) {
 
 func BenchmarkMetricService_GetAllMetricsForDisplay(b *testing.B) {
 	repo := cache.NewMemStorage()
-	service := NewMetricService(repo, nil)
+	service := NewMetricService(repo, nil, nil)
 
 	for i := 0; i < 1000; i++ {
 		metric := model.CreateMetric("testMetric", "gauge")

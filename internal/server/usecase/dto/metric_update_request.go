@@ -14,8 +14,9 @@ package dto
 //	Gauge: {ID: "temperature", MType: "gauge", Value: 25.5}
 //	Counter: {ID: "requests", MType: "counter", Delta: 10}
 type MetricUpdateRequest struct {
-	ID    string   `json:"id" validate:"required"`
-	MType string   `json:"type" validate:"required"`
-	Delta *int64   `json:"delta,omitempty"`
-	Value *float64 `json:"value,omitempty"`
+	ID        string   `json:"id" validate:"required"`
+	MType     string   `json:"type" validate:"required"`
+	Delta     *int64   `json:"delta,omitempty"`
+	Value     *float64 `json:"value,omitempty"`
+	IPAddress string   `json:"-"`
 }
