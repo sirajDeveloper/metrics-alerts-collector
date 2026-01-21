@@ -1,10 +1,13 @@
 package usecase
 
 import (
+	"fmt"
 	"math/rand/v2"
 	"runtime"
 	"sync"
 
+	"github.com/shirou/gopsutil/v3/cpu"
+	"github.com/shirou/gopsutil/v3/mem"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/agent/domain"
 )
 
@@ -75,6 +78,48 @@ func (c *Collector) Collect() {
 		Type:  domain.Counter,
 		Value: c.pollCount,
 	}
+}
+
+func (c *Collector) CollectSystemMetrics() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	vmem, err := mem.VirtualMemory()
+	if err == nil {
+		c.metrics["TotalMemory"] = domain.Metric{
+			Name:  "TotalMemory",
+			Type:  domain.Gauge,
+			Value: float64(vmem.Total),
+		}
+
+		c.metrics["FreeMemory"] = domain.Metric{
+			Name:  "FreeMemory",
+			Type:  domain.Gauge,
+			Value: float64(vmem.Free),
+		}
+	}
+
+	cpuPercentages, err := cpu.Percent(0, true)
+	if err == nil {
+		for i, percentage := range cpuPercentages {
+			metricName := fmt.Sprintf("CPUutilization%d", i+1)
+			c.metrics[metricName] = domain.Metric{
+				Name:  metricName,
+				Type:  domain.Gauge,
+				Value: percentage,
+			}
+		}
+	}
+}
+
+func (c *Collector) GetMetrics() []domain.Metric {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	metricList := make([]domain.Metric, 0, len(c.metrics))
+	for _, metric := range c.metrics {
+		metricList = append(metricList, metric)
+	}
+	return metricList
 }
 
 func (c *Collector) Report() {
