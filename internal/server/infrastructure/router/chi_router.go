@@ -15,9 +15,10 @@ import (
 type ChiRouter struct {
 	router         chi.Router
 	metricsHandler *httpHandler.MetricsHandler
+	healthHandler  *httpHandler.HealthHandler
 }
 
-func NewChiRouter(metricUpdater usecase.MetricUpdater, metricGetter usecase.MetricGetter) *ChiRouter {
+func NewChiRouter(metricUpdater usecase.MetricUpdater, metricGetter usecase.MetricGetter, healthChecker usecase.HealthChecker) *ChiRouter {
 	r := chi.NewRouter()
 
 	r.Use(chiMidware.Recoverer)
@@ -25,8 +26,10 @@ func NewChiRouter(metricUpdater usecase.MetricUpdater, metricGetter usecase.Metr
 	r.Use(customMidWare.GzipMiddleware)
 
 	handler := httpHandler.NewMetricsHandler(metricUpdater, metricGetter)
+	healthHandler := httpHandler.NewHealthHandler(healthChecker)
 
 	r.Get("/", handler.GetAllMetrics)
+	r.Get("/ping", healthHandler.Ping)
 
 	r.Route("/update", func(r chi.Router) {
 		r.Post("/", handler.UpdateMetric)
@@ -41,6 +44,7 @@ func NewChiRouter(metricUpdater usecase.MetricUpdater, metricGetter usecase.Metr
 	return &ChiRouter{
 		router:         r,
 		metricsHandler: handler,
+		healthHandler:  healthHandler,
 	}
 }
 

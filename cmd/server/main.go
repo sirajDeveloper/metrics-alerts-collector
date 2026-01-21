@@ -13,6 +13,7 @@ import (
 
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/logger"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/infrastructure/datastorage/cache"
+	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/infrastructure/datastorage/database"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/infrastructure/datastorage/file"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/infrastructure/router"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/infrastructure/scheduler"
@@ -20,12 +21,12 @@ import (
 )
 
 func main() {
+	logger.InitLogger(false)
 	cfg, err := parseConfig()
 	if err != nil {
 		logger.Log.Fatal("Failed to parse config", zap.String("error", err.Error()))
 	}
 
-	logger.InitLogger(false)
 	defer func() {
 		err := logger.Sync()
 		if err != nil {
@@ -35,11 +36,24 @@ func main() {
 
 	fileStorage := file.NewJSONFileStorage(*cfg.FileStoragePath)
 
+	dbCtx, cancelDB := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancelDB()
+	postgres, err := database.NewPostgres(dbCtx, *cfg.DatabaseDSN)
+	if err != nil {
+		logger.Log.Fatal("Failed to initialize database", zap.String("error", err.Error()))
+	}
+	defer postgres.Close()
+
+	/*if err := postgres.Ping(context.Background()); err != nil {
+		logger.Log.Fatal("Database ping failed", zap.String("error", err.Error()))
+	}
+	*/
 	metricRepo := cache.NewMemStorage()
 
 	emitter := usecase.NewMetricsEmitterService(fileStorage, metricRepo, *cfg.StoreInterval)
 
 	metricService := usecase.NewMetricService(metricRepo, emitter)
+	healthService := usecase.NewHealthService(postgres)
 
 	emitStarter := scheduler.NewMetricEmitterScheduler(emitter, *cfg.StoreInterval, *cfg.Restore)
 
@@ -47,7 +61,7 @@ func main() {
 	defer schedCancel()
 	emitStarter.Start(schedCtx)
 
-	chiRouter := router.NewChiRouter(metricService, metricService)
+	chiRouter := router.NewChiRouter(metricService, metricService, healthService)
 
 	server := &http.Server{
 		Addr:    *cfg.Address,
