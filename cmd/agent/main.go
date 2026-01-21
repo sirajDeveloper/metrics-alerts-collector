@@ -19,7 +19,7 @@ func main() {
 	logger.InitLogger(false)
 
 	serverURL := "http://" + address
-	sender := infrastructure.NewHTTPSender(serverURL)
+	sender := infrastructure.NewHTTPSender(serverURL, countRetrySave)
 	fmt.Printf("HTTPSender init with serverURL: %v\n", serverURL)
 	reporter := usecase.NewMetricLoopReporter(sender)
 	collector := usecase.NewCollector(reporter)
