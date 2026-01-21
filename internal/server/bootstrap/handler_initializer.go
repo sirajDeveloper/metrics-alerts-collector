@@ -39,7 +39,7 @@ func (h *HandlerInitializer) Initialize() *HandlerResult {
 	schedCtx, schedCancel := context.WithCancel(context.Background())
 	schedulerInstance.Start(schedCtx)
 
-	chiRouter := router.NewChiRouter(h.metricUpdater, h.metricGetter, h.healthService)
+	chiRouter := router.NewChiRouter(h.metricUpdater, h.metricGetter, h.healthService, *h.config.GetSecretKey())
 	server := &http.Server{
 		Addr:    *h.config.GetAddress(),
 		Handler: chiRouter.Handler(),
