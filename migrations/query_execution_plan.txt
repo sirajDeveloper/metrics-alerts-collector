@@ -1,0 +1,163 @@
+                                                                                                                                                                                                                                                                                                                                                                                                                            QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                             
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Nested Loop Left Join  (cost=1893.16..1927.07 rows=1 width=754) (actual time=15.756..20.600 rows=1398 loops=1)
+   Output: fb.ci_name, fb.ci_ci_id, blockstat.name, reqstat.name, fb.it_service_critical_level, fb.status_detailed, fb.platform_name, fb.providing_unit, fb.functional_block, fb.tribe, fb.it_manager_employee_name, fb.reliability_group, fb.req_id, fb.req_name, fb.vnd_rr_code, pr.process_manager, fb.ch_id, fb.ch_name, fb.rule_id, prob.problem_id, prob.problem_status, prob.end_date, fb.description, CASE WHEN rcps.status THEN 'пройдена'::character varying(50) WHEN (NOT rcps.status) THEN 'не пройдена'::character varying(50) ELSE ''::character varying(50) END, fb.answer_name, appl.name
+   Join Filter: ((fb.ch_id = prob.check_id) AND (fb.ci_id_pk = prob.ci_id))
+   Rows Removed by Join Filter: 2790
+   Buffers: shared hit=23228
+   CTE filtered_base
+     ->  Unique  (cost=1888.08..1888.15 rows=1 width=236) (actual time=12.632..12.985 rows=1398 loops=1)
+           Output: ccr.id, ccr.ci_id, ccr.check_id, ccr.answer_id, ccr.description, ccr.answer_name, ch.id, ch.name, ch.rule_id, ch.rr_id, ci.id, ci.name, ci.ci_id, ci.it_service_critical_level, ci.status_detailed, ci.platform_name, ci.providing_unit, ci.functional_block, ci.tribe, ci.it_manager_employee_name, ci.reliability_group, reqres.req_id, reqres.req_name, reqres.vnd_rr_code, reqres.ci_blocking_id, reqres.rr_radar_result_id, cam.status, rr.process_id, rr.applicability_id
+           Buffers: shared hit=10643
+           ->  Sort  (cost=1888.08..1888.09 rows=1 width=236) (actual time=12.631..12.679 rows=1398 loops=1)
+                 Output: ccr.id, ccr.ci_id, ccr.check_id, ccr.answer_id, ccr.description, ccr.answer_name, ch.id, ch.name, ch.rule_id, ch.rr_id, ci.id, ci.name, ci.ci_id, ci.it_service_critical_level, ci.status_detailed, ci.platform_name, ci.providing_unit, ci.functional_block, ci.tribe, ci.it_manager_employee_name, ci.reliability_group, reqres.req_id, reqres.req_name, reqres.vnd_rr_code, reqres.ci_blocking_id, reqres.rr_radar_result_id, cam.status, rr.process_id, rr.applicability_id
+                 Sort Key: ccr.id, ccr.ci_id, ccr.check_id, ccr.answer_id, ccr.description, ccr.answer_name, ch.name, ch.rule_id, ch.rr_id, ci.name, ci.ci_id, ci.it_service_critical_level, ci.status_detailed, ci.platform_name, ci.providing_unit, ci.functional_block, ci.tribe, ci.it_manager_employee_name, ci.reliability_group, reqres.req_name, reqres.vnd_rr_code, reqres.ci_blocking_id, reqres.rr_radar_result_id, cam.status, rr.process_id
+                 Sort Method: quicksort  Memory: 445kB
+                 Buffers: shared hit=10643
+                 ->  Nested Loop  (cost=32.26..1888.07 rows=1 width=236) (actual time=2.140..12.109 rows=1398 loops=1)
+                       Output: ccr.id, ccr.ci_id, ccr.check_id, ccr.answer_id, ccr.description, ccr.answer_name, ch.id, ch.name, ch.rule_id, ch.rr_id, ci.id, ci.name, ci.ci_id, ci.it_service_critical_level, ci.status_detailed, ci.platform_name, ci.providing_unit, ci.functional_block, ci.tribe, ci.it_manager_employee_name, ci.reliability_group, reqres.req_id, reqres.req_name, reqres.vnd_rr_code, reqres.ci_blocking_id, reqres.rr_radar_result_id, cam.status, rr.process_id, rr.applicability_id
+                       Inner Unique: true
+                       Buffers: shared hit=10634
+                       ->  Nested Loop  (cost=31.97..1887.73 rows=1 width=143) (actual time=2.130..9.781 rows=1398 loops=1)
+                             Output: ccr.id, ccr.ci_id, ccr.check_id, ccr.answer_id, ccr.description, ccr.answer_name, ch.id, ch.name, ch.rule_id, ch.rr_id, reqres.req_id, reqres.req_name, reqres.vnd_rr_code, reqres.ci_blocking_id, reqres.rr_radar_result_id, reqres.ci_id, cam.status, rr.process_id, rr.applicability_id
+                             Join Filter: (ch.rr_id = reqres.req_id)
+                             Rows Removed by Join Filter: 128
+                             Buffers: shared hit=6440
+                             ->  Nested Loop  (cost=31.55..1810.40 rows=165 width=96) (actual time=0.253..7.121 rows=1564 loops=1)
+                                   Output: ccr.id, ccr.ci_id, ccr.check_id, ccr.answer_id, ccr.description, ccr.answer_name, ch.id, ch.name, ch.rule_id, ch.rr_id, cam.status, rr.process_id, rr.applicability_id, rr.id
+                                   Join Filter: (ch.id = ccr.check_id)
+                                   Buffers: shared hit=1747
+                                   ->  Hash Join  (cost=12.42..24.86 rows=66 width=45) (actual time=0.085..0.162 rows=42 loops=1)
+                                         Output: ch.id, ch.name, ch.rule_id, ch.rr_id, cam.status, cam.check_id, cam.id, rr.process_id, rr.applicability_id, rr.id
+                                         Hash Cond: (cam.check_id = ch.id)
+                                         Buffers: shared hit=11
+                                         ->  Seq Scan on rms.c_answers_manual cam  (cost=0.00..9.66 rows=566 width=12) (actual time=0.003..0.029 rows=566 loops=1)
+                                               Output: cam.id, cam.check_id, cam.status, cam.answer_name
+                                               Buffers: shared hit=4
+                                         ->  Hash  (cost=12.13..12.13 rows=23 width=33) (actual time=0.071..0.072 rows=15 loops=1)
+                                               Output: ch.id, ch.name, ch.rule_id, ch.rr_id, rr.process_id, rr.applicability_id, rr.id
+                                               Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                                               Buffers: shared hit=7
+                                               ->  Hash Join  (cost=5.69..12.13 rows=23 width=33) (actual time=0.035..0.067 rows=15 loops=1)
+                                                     Output: ch.id, ch.name, ch.rule_id, ch.rr_id, rr.process_id, rr.applicability_id, rr.id
+                                                     Inner Unique: true
+                                                     Hash Cond: (ch.rr_id = rr.id)
+                                                     Buffers: shared hit=7
+                                                     ->  Seq Scan on rms.rr_checks ch  (cost=0.00..5.96 rows=177 width=21) (actual time=0.003..0.025 rows=177 loops=1)
+                                                           Output: ch.id, ch.rr_id, ch.name, ch.type_id, ch.algorithm, ch.grace_period, ch.team_type_id, ch.updated, ch.updated_by, ch.period_id, ch.trigger, ch.problem_form_id, ch.problem_source_id, ch.problem_reason_id, ch.risk_description, ch.auto_problem, ch.audit_id, ch.created, ch.report_link, ch.active, ch.last_activation_date, ch.last_deactivation_date, ch.rule_id, ch.theme_problem, ch.description_problem, ch.c_sources_id, ch.auto_create_audit, ch.root_cause, ch.workaround, ch.resolution
+                                                           Filter: ch.active
+                                                           Rows Removed by Filter: 19
+                                                           Buffers: shared hit=4
+                                                     ->  Hash  (cost=5.43..5.43 rows=21 width=12) (actual time=0.020..0.021 rows=21 loops=1)
+                                                           Output: rr.process_id, rr.applicability_id, rr.id
+                                                           Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                                                           Buffers: shared hit=3
+                                                           ->  Seq Scan on rms.rr_registry rr  (cost=0.00..5.43 rows=21 width=12) (actual time=0.003..0.012 rows=21 loops=1)
+                                                                 Output: rr.process_id, rr.applicability_id, rr.id
+                                                                 Filter: ((rr.status_id = 5) AND (rr.applicability_id = 2))
+                                                                 Rows Removed by Filter: 141
+                                                                 Buffers: shared hit=3
+                                   ->  Bitmap Heap Scan on rms.ch_common_results ccr  (cost=19.14..27.03 rows=2 width=59) (actual time=0.128..0.158 rows=37 loops=42)
+                                         Output: ccr.id, ccr.ci_id, ccr.check_id, ccr.answer_id, ccr.description, ccr.answer_name, ccr.created, ccr.updated
+                                         Recheck Cond: ((ccr.answer_id = cam.id) AND (ccr.check_id = cam.check_id))
+                                         Heap Blocks: exact=1564
+                                         Buffers: shared hit=1736
+                                         ->  BitmapAnd  (cost=19.14..19.14 rows=2 width=0) (actual time=0.123..0.123 rows=0 loops=42)
+                                               Buffers: shared hit=172
+                                               ->  Bitmap Index Scan on idx_ch_common_results_answer_id  (cost=0.00..6.05 rows=489 width=0) (actual time=0.027..0.027 rows=381 loops=42)
+                                                     Index Cond: (ccr.answer_id = cam.id)
+                                                     Buffers: shared hit=84
+                                               ->  Bitmap Index Scan on idx_ch_common_results_check_id  (cost=0.00..12.84 rows=1411 width=0) (actual time=0.082..0.082 rows=1071 loops=42)
+                                                     Index Cond: (ccr.check_id = cam.check_id)
+                                                     Buffers: shared hit=88
+                             ->  Index Only Scan using idx_regres_ci_req_applicability on rms.all_req_completing reqres  (cost=0.41..0.46 rows=1 width=51) (actual time=0.001..0.001 rows=1 loops=1564)
+                                   Output: reqres.ci_id, reqres.req_id, reqres.inclusion_in_radar, reqres.applicability_id, reqres.req_name, reqres.vnd_rr_code, reqres.ci_blocking_id, reqres.rr_radar_result_id
+                                   Index Cond: ((reqres.ci_id = ccr.ci_id) AND (reqres.inclusion_in_radar = true))
+                                   Heap Fetches: 0
+                                   Buffers: shared hit=4693
+                       ->  Index Scan using datahub_sm_ci_pkey on rms.datahub_sm_ci ci  (cost=0.29..0.34 rows=1 width=97) (actual time=0.001..0.001 rows=1 loops=1398)
+                             Output: ci.id, ci.ci_id, ci.owner_department, ci.app_id, ci.parent_name, ci.rqm_update_date, ci.approver_rov, ci.created_by_date, ci.it_service, ci.environment_name, ci.name, ci.is_active, ci.severity_id, ci.environment_id, ci.platform_id, ci.status_id, ci.critical_level_approval_date, ci.ivu_is_actual, ci.ivu_date, ci.tps_trial_operation_date, ci.trial_operation_end_date, ci.update_date, ci.recovery_doc_actual, ci.has_drp, ci.drp_date, ci.arch_board_date, ci.it_service_critical_level, ci.status_detailed, ci.platform_name, ci.providing_unit, ci.functional_block, ci.tribe, ci.it_manager_employee_name, ci.reliability_group
+                             Index Cond: (ci.id = ccr.ci_id)
+                             Filter: ((ci.environment_id = ANY ('{1,2}'::integer[])) AND (ci.severity_id = ANY ('{1,2,3}'::integer[])) AND (ci.platform_id = ANY ('{1,2,3,4,5,6,7,8}'::integer[])))
+                             Buffers: shared hit=4194
+   ->  Nested Loop  (cost=0.64..34.47 rows=1 width=603) (actual time=13.951..16.494 rows=1398 loops=1)
+         Output: fb.ci_name, fb.ci_ci_id, fb.it_service_critical_level, fb.status_detailed, fb.platform_name, fb.providing_unit, fb.functional_block, fb.tribe, fb.it_manager_employee_name, fb.reliability_group, fb.req_id, fb.req_name, fb.vnd_rr_code, fb.ch_id, fb.ch_name, fb.rule_id, fb.description, fb.answer_name, fb.ci_id_pk, rcps.status, appl.name, pr.process_manager, blockstat.name, reqstat.name
+         Inner Unique: true
+         Buffers: shared hit=21828
+         ->  Nested Loop  (cost=0.49..26.28 rows=1 width=579) (actual time=13.921..15.922 rows=1398 loops=1)
+               Output: fb.ci_name, fb.ci_ci_id, fb.it_service_critical_level, fb.status_detailed, fb.platform_name, fb.providing_unit, fb.functional_block, fb.tribe, fb.it_manager_employee_name, fb.reliability_group, fb.req_id, fb.req_name, fb.vnd_rr_code, fb.ch_id, fb.ch_name, fb.rule_id, fb.description, fb.answer_name, fb.rr_radar_result_id, fb.ci_id_pk, rcps.status, appl.name, pr.process_manager, blockstat.name
+               Inner Unique: true
+               Buffers: shared hit=19032
+               ->  Nested Loop Left Join  (cost=0.34..18.10 rows=1 width=555) (actual time=13.887..15.317 rows=1398 loops=1)
+                     Output: fb.ci_name, fb.ci_ci_id, fb.it_service_critical_level, fb.status_detailed, fb.platform_name, fb.providing_unit, fb.functional_block, fb.tribe, fb.it_manager_employee_name, fb.reliability_group, fb.req_id, fb.req_name, fb.vnd_rr_code, fb.ch_id, fb.ch_name, fb.rule_id, fb.description, fb.answer_name, fb.ci_blocking_id, fb.rr_radar_result_id, fb.ci_id_pk, rcps.status, appl.name, pr.process_manager
+                     Inner Unique: true
+                     Buffers: shared hit=16236
+                     ->  Nested Loop Left Join  (cost=0.18..9.91 rows=1 width=527) (actual time=13.856..14.709 rows=1398 loops=1)
+                           Output: fb.ci_name, fb.ci_ci_id, fb.it_service_critical_level, fb.status_detailed, fb.platform_name, fb.providing_unit, fb.functional_block, fb.tribe, fb.it_manager_employee_name, fb.reliability_group, fb.req_id, fb.req_name, fb.vnd_rr_code, fb.ch_id, fb.ch_name, fb.rule_id, fb.description, fb.answer_name, fb.applicability_id, fb.ci_blocking_id, fb.rr_radar_result_id, fb.ci_id_pk, rcps.status, pr.process_manager
+                           Inner Unique: true
+                           Buffers: shared hit=13440
+                           ->  Hash Right Join  (cost=0.03..1.73 rows=1 width=530) (actual time=13.818..14.092 rows=1398 loops=1)
+                                 Output: fb.ci_name, fb.ci_ci_id, fb.it_service_critical_level, fb.status_detailed, fb.platform_name, fb.providing_unit, fb.functional_block, fb.tribe, fb.it_manager_employee_name, fb.reliability_group, fb.req_id, fb.req_name, fb.vnd_rr_code, fb.ch_id, fb.ch_name, fb.rule_id, fb.description, fb.answer_name, fb.cam_status, fb.applicability_id, fb.ci_blocking_id, fb.rr_radar_result_id, fb.ci_id_pk, pr.process_manager
+                                 Hash Cond: (pr.id = fb.process_id)
+                                 Buffers: shared hit=10644
+                                 ->  Seq Scan on rms.rr_process pr  (cost=0.00..1.50 rows=50 width=14) (actual time=0.010..0.012 rows=50 loops=1)
+                                       Output: pr.id, pr.name, pr.process_owner, pr.process_manager, pr.vnd_code, pr.vnd_link, pr.category_id
+                                       Buffers: shared hit=1
+                                 ->  Hash  (cost=0.02..0.02 rows=1 width=524) (actual time=13.790..13.790 rows=1398 loops=1)
+                                       Output: fb.ci_name, fb.ci_ci_id, fb.it_service_critical_level, fb.status_detailed, fb.platform_name, fb.providing_unit, fb.functional_block, fb.tribe, fb.it_manager_employee_name, fb.reliability_group, fb.req_id, fb.req_name, fb.vnd_rr_code, fb.ch_id, fb.ch_name, fb.rule_id, fb.description, fb.answer_name, fb.cam_status, fb.applicability_id, fb.process_id, fb.ci_blocking_id, fb.rr_radar_result_id, fb.ci_id_pk
+                                       Buckets: 2048 (originally 1024)  Batches: 1 (originally 1)  Memory Usage: 364kB
+                                       Buffers: shared hit=10643
+                                       ->  CTE Scan on filtered_base fb  (cost=0.00..0.02 rows=1 width=524) (actual time=12.636..13.390 rows=1398 loops=1)
+                                             Output: fb.ci_name, fb.ci_ci_id, fb.it_service_critical_level, fb.status_detailed, fb.platform_name, fb.providing_unit, fb.functional_block, fb.tribe, fb.it_manager_employee_name, fb.reliability_group, fb.req_id, fb.req_name, fb.vnd_rr_code, fb.ch_id, fb.ch_name, fb.rule_id, fb.description, fb.answer_name, fb.cam_status, fb.applicability_id, fb.process_id, fb.ci_blocking_id, fb.rr_radar_result_id, fb.ci_id_pk
+                                             Buffers: shared hit=10643
+                           ->  Index Scan using rr_checks_passed_status_pk on rms.rr_checks_passed_status rcps  (cost=0.15..8.17 rows=1 width=5) (actual time=0.000..0.000 rows=1 loops=1398)
+                                 Output: rcps.id, rcps.status, rcps.name
+                                 Index Cond: (rcps.id = fb.cam_status)
+                                 Buffers: shared hit=2796
+                     ->  Index Scan using rr_applicability_pk on rms.rr_applicability appl  (cost=0.15..8.17 rows=1 width=36) (actual time=0.000..0.000 rows=1 loops=1398)
+                           Output: appl.id, appl.name
+                           Index Cond: (appl.id = fb.applicability_id)
+                           Buffers: shared hit=2796
+               ->  Index Scan using rr_radar_ci_blocking_status_pkey on rms.rr_radar_ci_blocking_status blockstat  (cost=0.15..8.17 rows=1 width=40) (actual time=0.000..0.000 rows=1 loops=1398)
+                     Output: blockstat.id, blockstat.sysname, blockstat.name
+                     Index Cond: (blockstat.id = fb.ci_blocking_id)
+                     Buffers: shared hit=2796
+         ->  Index Scan using rr_radar_result_pkey on rms.rr_radar_result reqstat  (cost=0.15..8.17 rows=1 width=40) (actual time=0.000..0.000 rows=1 loops=1398)
+               Output: reqstat.id, reqstat.sysname, reqstat.name
+               Index Cond: (reqstat.id = fb.rr_radar_result_id)
+               Buffers: shared hit=2796
+   ->  Subquery Scan on prob  (cost=4.37..4.43 rows=1 width=46) (actual time=0.002..0.003 rows=2 loops=1398)
+         Output: prob.id, prob.ci_id, prob.created, prob.updated, prob.problem_id, prob.problem_status, prob.end_date, prob.passed, prob.priority_id, prob.check_id, prob.rule_id, prob.vnd_rr_code, prob.internal_rms, prob.resolved_date, prob.initiator, prob.substatus, prob.sm_update_date, prob.closing_code, prob.ci_agent_parent, prob.rn, prob.cnt
+         Filter: ((prob.cnt = 1) OR ((prob.cnt > 1) AND ((prob.problem_status)::text <> 'Закрыта'::text) AND (prob.rn = 1)))
+         Buffers: shared hit=1400
+         ->  WindowAgg  (cost=4.37..4.41 rows=1 width=272) (actual time=0.002..0.003 rows=2 loops=1398)
+               Output: NULL::bigint, prob_1.ci_id, NULL::timestamp without time zone, prob_1.updated, prob_1.problem_id, prob_1.problem_status, prob_1.end_date, NULL::boolean, NULL::integer, prob_1.check_id, NULL::integer, NULL::character varying, NULL::boolean, NULL::timestamp without time zone, NULL::character varying, NULL::character varying, NULL::timestamp without time zone, NULL::character varying, NULL::character varying, (row_number() OVER (?)), count(*) OVER (?)
+               Buffers: shared hit=1400
+               ->  WindowAgg  (cost=4.37..4.39 rows=1 width=62) (actual time=0.002..0.002 rows=2 loops=1398)
+                     Output: prob_1.ci_id, prob_1.updated, prob_1.check_id, prob_1.problem_id, prob_1.problem_status, prob_1.end_date, row_number() OVER (?)
+                     Buffers: shared hit=1400
+                     ->  Sort  (cost=4.37..4.37 rows=1 width=54) (actual time=0.001..0.001 rows=2 loops=1398)
+                           Output: prob_1.ci_id, prob_1.updated, prob_1.check_id, prob_1.problem_id, prob_1.problem_status, prob_1.end_date
+                           Sort Key: prob_1.ci_id, prob_1.check_id, prob_1.updated DESC
+                           Sort Method: quicksort  Memory: 25kB
+                           Buffers: shared hit=1400
+                           ->  Nested Loop  (cost=0.31..4.36 rows=1 width=54) (actual time=1.137..1.743 rows=2 loops=1)
+                                 Output: prob_1.ci_id, prob_1.updated, prob_1.check_id, prob_1.problem_id, prob_1.problem_status, prob_1.end_date
+                                 Buffers: shared hit=1397
+                                 ->  HashAggregate  (cost=0.03..0.04 rows=1 width=8) (actual time=0.259..0.302 rows=698 loops=1)
+                                       Output: filtered_base.ci_id_pk, filtered_base.ch_id
+                                       Group Key: filtered_base.ci_id_pk, filtered_base.ch_id
+                                       Batches: 1  Memory Usage: 129kB
+                                       ->  CTE Scan on filtered_base  (cost=0.00..0.02 rows=1 width=8) (actual time=0.001..0.063 rows=1398 loops=1)
+                                             Output: filtered_base.ccr_id, filtered_base.ci_id, filtered_base.check_id, filtered_base.answer_id, filtered_base.description, filtered_base.answer_name, filtered_base.ch_id, filtered_base.ch_name, filtered_base.rule_id, filtered_base.rr_id, filtered_base.ci_id_pk, filtered_base.ci_name, filtered_base.ci_ci_id, filtered_base.it_service_critical_level, filtered_base.status_detailed, filtered_base.platform_name, filtered_base.providing_unit, filtered_base.functional_block, filtered_base.tribe, filtered_base.it_manager_employee_name, filtered_base.reliability_group, filtered_base.req_id, filtered_base.req_name, filtered_base.vnd_rr_code, filtered_base.ci_blocking_id, filtered_base.rr_radar_result_id, filtered_base.cam_status, filtered_base.process_id, filtered_base.applicability_id
+                                 ->  Index Only Scan using idx_rr_problems_ci_check_updated on rms.rr_problems prob_1  (cost=0.29..4.30 rows=1 width=54) (actual time=0.002..0.002 rows=0 loops=698)
+                                       Output: prob_1.ci_id, prob_1.check_id, prob_1.updated, prob_1.problem_id, prob_1.problem_status, prob_1.end_date
+                                       Index Cond: ((prob_1.ci_id = filtered_base.ci_id_pk) AND (prob_1.check_id = filtered_base.ch_id))
+                                       Heap Fetches: 0
+                                       Buffers: shared hit=1397
+ Planning:
+   Buffers: shared hit=1071
+ Planning Time: 6.990 ms
+ Execution Time: 21.021 ms
+(159 rows)
+
