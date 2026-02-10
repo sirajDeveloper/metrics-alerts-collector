@@ -11,7 +11,6 @@ import (
 	"strings"
 )
 
-// StructInfo содержит информацию о структуре, для которой нужно сгенерировать Reset()
 type StructInfo struct {
 	Name     string
 	Package  string
@@ -19,7 +18,6 @@ type StructInfo struct {
 	Fields   []FieldInfo
 }
 
-// FieldInfo содержит информацию о поле структуры
 type FieldInfo struct {
 	Name     string
 	Type     string
@@ -31,96 +29,133 @@ type FieldInfo struct {
 }
 
 func main() {
-	// Автоматически находим корневую директорию проекта (ищем go.mod)
-	// Начинаем с директории, где находится генератор
-	execPath, err := os.Executable()
-	if err != nil {
-		// Если не удалось получить путь к исполняемому файлу, используем текущую директорию
-		execPath = "."
-	}
-
-	// Получаем директорию генератора
-	generatorDir := filepath.Dir(execPath)
-	if generatorDir == "." {
-		// Если запускаем через go run, получаем рабочую директорию
-		generatorDir, _ = os.Getwd()
-	}
-
-	// Ищем go.mod, поднимаясь вверх по директориям
-	rootDir := findProjectRoot(generatorDir)
-	if rootDir == "" {
-		// Если go.mod не найден, используем текущую рабочую директорию
-		rootDir, _ = os.Getwd()
-	}
-
-	// Получаем абсолютный путь
-	absRoot, err := filepath.Abs(rootDir)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Ошибка получения абсолютного пути: %v\n", err)
+	if err := run(); err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
+	}
+}
+
+func run() error {
+	absRoot, err := resolveProjectRoot()
+	if err != nil {
+		return err
 	}
 
 	fmt.Printf("Сканирование пакетов в директории: %s\n", absRoot)
 
-	// Сканируем все пакеты и находим структуры с комментарием // generate:reset
-	structsToGenerate := make(map[string][]StructInfo) // ключ - путь пакета
+	structsToGenerate, err := scanStructs(absRoot)
+	if err != nil {
+		return err
+	}
 
-	err = filepath.Walk(absRoot, func(path string, info os.FileInfo, err error) error {
+	generateForPackages(absRoot, structsToGenerate)
+
+	fmt.Println("Генерация завершена")
+	return nil
+}
+
+func resolveProjectRoot() (string, error) {
+	execPath, err := os.Executable()
+	if err != nil {
+		execPath = "."
+	}
+
+	generatorDir := filepath.Dir(execPath)
+	if generatorDir == "." {
+		generatorDir, _ = os.Getwd()
+	}
+
+	rootDir := findProjectRoot(generatorDir)
+	if rootDir == "" {
+		rootDir, _ = os.Getwd()
+	}
+
+	absRoot, err := filepath.Abs(rootDir)
+	if err != nil {
+		return "", fmt.Errorf("ошибка получения абсолютного пути: %w", err)
+	}
+
+	return absRoot, nil
+}
+
+func scanStructs(absRoot string) (map[string][]StructInfo, error) {
+	structsToGenerate := make(map[string][]StructInfo)
+
+	err := filepath.Walk(absRoot, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 
-		// Пропускаем директории, начинающиеся с точки, vendor, и cmd (чтобы не сканировать сам генератор)
 		if info.IsDir() {
-			if strings.HasPrefix(info.Name(), ".") && info.Name() != "." {
-				return filepath.SkipDir
-			}
-			if info.Name() == "vendor" || info.Name() == "node_modules" || info.Name() == "cmd" {
+			if shouldSkipDir(info.Name()) {
 				return filepath.SkipDir
 			}
 			return nil
 		}
 
-		// Обрабатываем только .go файлы (кроме уже сгенерированных)
-		if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, ".gen.go") {
+		if !isSourceFile(path) {
 			return nil
 		}
 
 		structs, err := parseFileForStructs(path, absRoot)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Ошибка парсинга файла %s: %v\n", path, err)
-			return nil // Продолжаем обработку других файлов
+			return nil
 		}
 
-		if len(structs) > 0 {
-			// Определяем путь пакета относительно корня
-			relPath, _ := filepath.Rel(absRoot, filepath.Dir(path))
-			pkgPath := relPath
-			if pkgPath == "." {
-				pkgPath = ""
-			}
-			structsToGenerate[pkgPath] = append(structsToGenerate[pkgPath], structs...)
+		if len(structs) == 0 {
+			return nil
 		}
+
+		pkgPath := normalizePackagePath(absRoot, filepath.Dir(path))
+		structsToGenerate[pkgPath] = append(structsToGenerate[pkgPath], structs...)
 
 		return nil
 	})
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Ошибка сканирования директорий: %v\n", err)
-		os.Exit(1)
+		return nil, fmt.Errorf("ошибка сканирования директорий: %w", err)
 	}
 
-	// Генерируем методы Reset() для каждого пакета
+	return structsToGenerate, nil
+}
+
+func shouldSkipDir(name string) bool {
+	if strings.HasPrefix(name, ".") && name != "." {
+		return true
+	}
+
+	switch name {
+	case "vendor", "node_modules", "cmd":
+		return true
+	}
+
+	return false
+}
+
+func isSourceFile(path string) bool {
+	if !strings.HasSuffix(path, ".go") {
+		return false
+	}
+	return !strings.HasSuffix(path, ".gen.go")
+}
+
+func normalizePackagePath(rootDir, fileDir string) string {
+	relPath, _ := filepath.Rel(rootDir, fileDir)
+	if relPath == "." {
+		return ""
+	}
+	return relPath
+}
+
+func generateForPackages(absRoot string, structsToGenerate map[string][]StructInfo) {
 	for pkgPath, structs := range structsToGenerate {
 		if err := generateResetMethods(absRoot, pkgPath, structs); err != nil {
 			fmt.Fprintf(os.Stderr, "Ошибка генерации для пакета %s: %v\n", pkgPath, err)
 		}
 	}
-
-	fmt.Println("Генерация завершена")
 }
 
-// parseFileForStructs парсит файл и находит структуры с комментарием // generate:reset
 func parseFileForStructs(filePath, rootDir string) ([]StructInfo, error) {
 	fset := token.NewFileSet()
 	node, err := parser.ParseFile(fset, filePath, nil, parser.ParseComments)
@@ -131,14 +166,12 @@ func parseFileForStructs(filePath, rootDir string) ([]StructInfo, error) {
 	var structs []StructInfo
 	pkgName := node.Name.Name
 
-	// Проходим по всем декларациям в файле
 	ast.Inspect(node, func(n ast.Node) bool {
 		genDecl, ok := n.(*ast.GenDecl)
 		if !ok {
 			return true
 		}
 
-		// Проверяем комментарии перед декларацией
 		if genDecl.Doc == nil {
 			return true
 		}
@@ -155,7 +188,6 @@ func parseFileForStructs(filePath, rootDir string) ([]StructInfo, error) {
 			return true
 		}
 
-		// Ищем type declarations
 		for _, spec := range genDecl.Specs {
 			typeSpec, ok := spec.(*ast.TypeSpec)
 			if !ok {
@@ -167,7 +199,6 @@ func parseFileForStructs(filePath, rootDir string) ([]StructInfo, error) {
 				continue
 			}
 
-			// Найдена структура с комментарием // generate:reset
 			structName := typeSpec.Name.Name
 			fields := parseStructFields(structType)
 
@@ -191,7 +222,6 @@ func parseFileForStructs(filePath, rootDir string) ([]StructInfo, error) {
 	return structs, nil
 }
 
-// parseStructFields извлекает информацию о полях структуры
 func parseStructFields(structType *ast.StructType) []FieldInfo {
 	var fields []FieldInfo
 
@@ -215,9 +245,7 @@ func parseStructFields(structType *ast.StructType) []FieldInfo {
 			fieldInfo.Tag = field.Tag.Value
 		}
 
-		// Обрабатываем имена полей
 		if len(field.Names) == 0 {
-			// Встроенное поле - пропускаем, так как для них Reset() будет вызван через встроенный тип
 			continue
 		} else {
 			for _, name := range field.Names {
@@ -232,7 +260,6 @@ func parseStructFields(structType *ast.StructType) []FieldInfo {
 	return fields
 }
 
-// getTypeString возвращает строковое представление типа
 func getTypeString(expr ast.Expr) string {
 	switch t := expr.(type) {
 	case *ast.Ident:
@@ -257,13 +284,11 @@ func getTypeString(expr ast.Expr) string {
 	}
 }
 
-// isPointerType проверяет, является ли тип указателем
 func isPointerType(expr ast.Expr) bool {
 	_, ok := expr.(*ast.StarExpr)
 	return ok
 }
 
-// isSliceType проверяет, является ли тип слайсом
 func isSliceType(expr ast.Expr) bool {
 	arrType, ok := expr.(*ast.ArrayType)
 	if !ok {
@@ -272,20 +297,16 @@ func isSliceType(expr ast.Expr) bool {
 	return arrType.Len == nil
 }
 
-// isMapType проверяет, является ли тип мапой
 func isMapType(expr ast.Expr) bool {
 	_, ok := expr.(*ast.MapType)
 	return ok
 }
 
-// isStructType проверяет, является ли тип структурой
 func isStructType(expr ast.Expr) bool {
 	switch t := expr.(type) {
 	case *ast.Ident:
-		// Не можем точно определить без дополнительной информации
 		return false
 	case *ast.SelectorExpr:
-		// Пакет.Тип - возможно структура
 		return true
 	case *ast.StarExpr:
 		return isStructType(t.X)
@@ -294,13 +315,11 @@ func isStructType(expr ast.Expr) bool {
 	}
 }
 
-// generateResetMethods генерирует методы Reset() для всех структур пакета
 func generateResetMethods(rootDir, pkgPath string, structs []StructInfo) error {
 	if len(structs) == 0 {
 		return nil
 	}
 
-	// Определяем директорию пакета
 	var pkgDir string
 	if pkgPath == "" {
 		pkgDir = rootDir
@@ -308,12 +327,10 @@ func generateResetMethods(rootDir, pkgPath string, structs []StructInfo) error {
 		pkgDir = filepath.Join(rootDir, pkgPath)
 	}
 
-	// Создаем содержимое файла reset.gen.go
 	var sb strings.Builder
 	sb.WriteString("// Code generated by cmd/reset/main.go. DO NOT EDIT.\n\n")
 	sb.WriteString("package " + structs[0].Package + "\n\n")
 
-	// Генерируем метод Reset() для каждой структуры
 	for _, s := range structs {
 		sb.WriteString(fmt.Sprintf("// Reset сбрасывает состояние структуры %s к начальным значениям\n", s.Name))
 		sb.WriteString(fmt.Sprintf("func (s *%s) Reset() {\n", s.Name))
@@ -329,15 +346,12 @@ func generateResetMethods(rootDir, pkgPath string, structs []StructInfo) error {
 		sb.WriteString("}\n\n")
 	}
 
-	// Форматируем код
 	formatted, err := format.Source([]byte(sb.String()))
 	if err != nil {
-		// Если форматирование не удалось, используем исходный код
 		formatted = []byte(sb.String())
 		fmt.Fprintf(os.Stderr, "Предупреждение: не удалось отформатировать код для пакета %s: %v\n", pkgPath, err)
 	}
 
-	// Записываем в файл reset.gen.go
 	outputPath := filepath.Join(pkgDir, "reset.gen.go")
 	if err := os.WriteFile(outputPath, formatted, 0644); err != nil {
 		return fmt.Errorf("ошибка записи файла %s: %w", outputPath, err)
@@ -347,12 +361,9 @@ func generateResetMethods(rootDir, pkgPath string, structs []StructInfo) error {
 	return nil
 }
 
-// generateFieldReset генерирует код для сброса поля
 func generateFieldReset(fieldName string, field FieldInfo) string {
 	if field.IsPtr {
-		// Для указателей проверяем на nil и сбрасываем значение, на которое они указывают
 		baseType := strings.TrimPrefix(field.Type, "*")
-		// Создаем новую FieldInfo для базового типа
 		baseField := FieldInfo{
 			Type:     baseType,
 			IsPtr:    false,
@@ -361,55 +372,42 @@ func generateFieldReset(fieldName string, field FieldInfo) string {
 			IsStruct: field.IsStruct || (!isPrimitiveType(baseType) && !strings.HasPrefix(baseType, "[]") && !strings.HasPrefix(baseType, "map[")),
 		}
 
-		// Для указателей на примитивы - сбрасываем значение к zero value
 		if isPrimitiveType(baseType) {
 			resetCode := generateValueReset("*s."+fieldName, baseType, baseField)
 			return fmt.Sprintf("if s.%s != nil {\n\t\t%s\n\t}", fieldName, resetCode)
 		}
 
-		// Для указателей на структуры - вызываем Reset() если есть, иначе сбрасываем к zero value
 		if baseField.IsStruct {
-			// Пытаемся вызвать Reset() на разыменованном указателе
 			if strings.Contains(baseType, ".") {
-				// Тип из другого пакета
 				return fmt.Sprintf("if s.%s != nil {\n\t\tif r, ok := interface{}(s.%s).(interface{ Reset() }); ok {\n\t\t\tr.Reset()\n\t\t} else {\n\t\t\t*s.%s = %s{}\n\t\t}\n\t}", fieldName, fieldName, fieldName, baseType)
 			}
-			// Локальный тип
 			return fmt.Sprintf("if s.%s != nil {\n\t\tif r, ok := interface{}(s.%s).(interface{ Reset() }); ok {\n\t\t\tr.Reset()\n\t\t} else {\n\t\t\t*s.%s = %s{}\n\t\t}\n\t}", fieldName, fieldName, fieldName, baseType)
 		}
 
-		// Для указателей на слайсы - обрезаем по длине
 		if baseField.IsSlice {
 			return fmt.Sprintf("if s.%s != nil {\n\t\t*s.%s = (*s.%s)[:0]\n\t}", fieldName, fieldName, fieldName)
 		}
 
-		// Для указателей на мапы - очищаем
 		if baseField.IsMap {
 			return fmt.Sprintf("if s.%s != nil {\n\t\tclear(*s.%s)\n\t}", fieldName, fieldName)
 		}
 
-		// Для остальных - сбрасываем к zero value
 		resetCode := generateValueReset("*s."+fieldName, baseType, baseField)
 		return fmt.Sprintf("if s.%s != nil {\n\t\t%s\n\t}", fieldName, resetCode)
 	}
 
 	if field.IsSlice {
-		// Слайсы обрезаем по длине, но не зануляем
 		return fmt.Sprintf("s.%s = s.%s[:0]", fieldName, fieldName)
 	}
 
 	if field.IsMap {
-		// Мапы очищаем
 		return fmt.Sprintf("clear(s.%s)", fieldName)
 	}
 
-	// Для обычных типов и структур
 	return generateValueReset("s."+fieldName, field.Type, field)
 }
 
-// generateValueReset генерирует код для сброса значения
 func generateValueReset(target, typeName string, field FieldInfo) string {
-	// Примитивные типы
 	switch typeName {
 	case "int", "int8", "int16", "int32", "int64":
 		return fmt.Sprintf("%s = 0", target)
@@ -427,34 +425,24 @@ func generateValueReset(target, typeName string, field FieldInfo) string {
 		return fmt.Sprintf("%s = 0", target)
 	}
 
-	// Для слайсов (если это не было обработано ранее)
 	if strings.HasPrefix(typeName, "[]") {
 		return fmt.Sprintf("%s = %s[:0]", target, target)
 	}
 
-	// Для мап (если это не было обработано ранее)
 	if strings.HasPrefix(typeName, "map[") {
 		return fmt.Sprintf("clear(%s)", target)
 	}
 
-	// Для структур проверяем, есть ли метод Reset()
-	// Если это структура (не примитив), пытаемся вызвать Reset()
 	if field.IsStruct || (!field.IsPtr && !field.IsSlice && !field.IsMap && !isPrimitiveType(typeName)) {
-		// Проверяем, является ли это встроенным типом или типом из другого пакета
 		if strings.Contains(typeName, ".") {
-			// Тип из другого пакета - пытаемся вызвать Reset(), если он есть
 			return fmt.Sprintf("if r, ok := interface{}(&%s).(interface{ Reset() }); ok { r.Reset() } else { %s = %s{} }", target, target, typeName)
 		}
-		// Локальный тип - предполагаем, что может быть Reset()
-		// Генерируем вызов Reset(), если метод существует
 		return fmt.Sprintf("if r, ok := interface{}(&%s).(interface{ Reset() }); ok { r.Reset() } else { %s = %s{} }", target, target, typeName)
 	}
 
-	// Для неизвестных типов используем zero value
 	return fmt.Sprintf("%s = %s{}", target, typeName)
 }
 
-// isPrimitiveType проверяет, является ли тип примитивным
 func isPrimitiveType(typeName string) bool {
 	primitives := []string{
 		"int", "int8", "int16", "int32", "int64",
@@ -471,7 +459,6 @@ func isPrimitiveType(typeName string) bool {
 	return false
 }
 
-// findProjectRoot ищет корневую директорию проекта, поднимаясь вверх и ища go.mod
 func findProjectRoot(startDir string) string {
 	for dir := startDir; ; {
 		goModPath := filepath.Join(dir, "go.mod")
@@ -479,11 +466,8 @@ func findProjectRoot(startDir string) string {
 			return dir
 		}
 
-		// filepath.Dir возвращает родительскую директорию для данного пути
-		// Например: filepath.Dir("/a/b/c") вернет "/a/b"
 		parent := filepath.Dir(dir)
 		if parent == dir {
-			// Достигли корня файловой системы (например, "/" на Unix или "C:\" на Windows)
 			break
 		}
 		dir = parent
