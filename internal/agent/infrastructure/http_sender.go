@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"crypto/hmac"
+	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -17,6 +18,7 @@ import (
 
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/agent/domain"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/logger"
+	"github.com/sirajDeveloper/metrics-alerts-collector/pkg/crypto"
 	"go.uber.org/zap"
 )
 
@@ -25,14 +27,16 @@ type HTTPSender struct {
 	client     *resty.Client
 	secretKey  string
 	retryCount int
+	publicKey  *rsa.PublicKey
 }
 
-func NewHTTPSender(url, secretKey string, retryCount int) *HTTPSender {
+func NewHTTPSender(url, secretKey string, retryCount int, publicKey *rsa.PublicKey) *HTTPSender {
 	return &HTTPSender{
 		serverURL:  url,
 		client:     resty.New(),
 		secretKey:  secretKey,
 		retryCount: retryCount,
+		publicKey:  publicKey,
 	}
 }
 
@@ -69,9 +73,24 @@ func (s *HTTPSender) sendRequest(url string, reqBody interface{}) error {
 		return err
 	}
 
-	compressedData, err := compressBody(jsonData, "application/json")
-	if err != nil {
-		return err
+	var dataToSend []byte
+	contentType := "application/json"
+	contentEncoding := "gzip"
+
+	if s.publicKey != nil {
+		encryptedData, err := crypto.Encrypt(s.publicKey, jsonData)
+		if err != nil {
+			return fmt.Errorf("failed to encrypt data: %w", err)
+		}
+		dataToSend = encryptedData
+		contentType = "application/octet-stream"
+		contentEncoding = ""
+	} else {
+		compressedData, err := compressBody(jsonData, "application/json")
+		if err != nil {
+			return err
+		}
+		dataToSend = compressedData
 	}
 
 	var hashHex string
@@ -86,12 +105,16 @@ func (s *HTTPSender) sendRequest(url string, reqBody interface{}) error {
 	return s.executeWithRetry(func() error {
 		logger.Log.Info("Request to", zap.String("url", url))
 
-		resp, err := s.client.R().
-			SetHeader("Content-Type", "application/json").
-			SetHeader("Content-Encoding", "gzip").
+		req := s.client.R().
+			SetHeader("Content-Type", contentType).
 			SetHeader("HashSHA256", hashHex).
-			SetBody(compressedData).
-			Post(url)
+			SetBody(dataToSend)
+
+		if contentEncoding != "" {
+			req.SetHeader("Content-Encoding", contentEncoding)
+		}
+
+		resp, err := req.Post(url)
 
 		if err != nil {
 			return err

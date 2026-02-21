@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/rsa"
 	"fmt"
 	"log"
 	"os"
@@ -9,10 +10,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/sirajDeveloper/metrics-alerts-collector/internal/logger"
-
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/agent/infrastructure"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/agent/usecase"
+	"github.com/sirajDeveloper/metrics-alerts-collector/internal/logger"
+	"github.com/sirajDeveloper/metrics-alerts-collector/pkg/crypto"
 )
 
 var (
@@ -22,12 +23,23 @@ var (
 )
 
 func main() {
+
 	printBuildInfo()
 	ParseConfig()
 	logger.InitLogger(false)
 
+	var publicKey *rsa.PublicKey
+	if cryptoKeyPath != "" {
+		key, err := crypto.LoadPublicKey(cryptoKeyPath)
+		if err != nil {
+			log.Fatalf("Failed to load public key: %v", err)
+		}
+		publicKey = key
+		log.Printf("Public key loaded from: %s", cryptoKeyPath)
+	}
+
 	serverURL := "http://" + address
-	sender := infrastructure.NewHTTPSender(serverURL, secretKey, countRetrySave)
+	sender := infrastructure.NewHTTPSender(serverURL, secretKey, countRetrySave, publicKey)
 	fmt.Printf("HTTPSender init with serverURL: %v\n", serverURL)
 	fmt.Printf("Rate limit: %d concurrent requests\n", rateLimit)
 	reporter := usecase.NewMetricWorkerPoolReporter(sender, rateLimit)

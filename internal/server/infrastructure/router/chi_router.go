@@ -1,6 +1,7 @@
 package router
 
 import (
+	"crypto/rsa"
 	"net/http"
 
 	customMidWare "github.com/sirajDeveloper/metrics-alerts-collector/internal/server/handler/http/middleware"
@@ -21,12 +22,15 @@ type ChiRouter struct {
 	secretKey      string
 }
 
-func NewChiRouter(metricUpdater usecase.MetricUpdater, metricGetter usecase.MetricGetter, healthChecker usecase.HealthChecker, secretKey string, auditPublisher event.AuditEventPublisher) *ChiRouter {
+func NewChiRouter(metricUpdater usecase.MetricUpdater, metricGetter usecase.MetricGetter, healthChecker usecase.HealthChecker, secretKey string, auditPublisher event.AuditEventPublisher, privateKey *rsa.PrivateKey) *ChiRouter {
 	r := chi.NewRouter()
 
 	r.Use(chiMidware.Recoverer)
 	r.Use(customMidWare.LoggingMiddleware)
 	r.Use(customMidWare.GzipMiddleware)
+	if privateKey != nil {
+		r.Use(customMidWare.RequestDecrypt(privateKey))
+	}
 	if secretKey != "" {
 		r.Use(customMidWare.RequestSignatureCheck(secretKey))
 		r.Use(customMidWare.ResponseSignatureAdd(secretKey))

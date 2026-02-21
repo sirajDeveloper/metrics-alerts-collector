@@ -18,6 +18,10 @@ func parseConfig() (*Config, error) {
 	var flagSecretKey string
 	var flagAuditFilePath string
 	var flagAuditServiceURL string
+	var flagCryptoKey string
+	var flagEnableHTTPS bool
+	var flagTLSCertFile string
+	var flagTLSKeyFile string
 
 	flag.StringVar(&flagAddress, "a", "localhost:8080", "address and port to run server")
 	flag.IntVar(&flagStoreInterval, "i", 300, "store interval seconds (0 = sync)")
@@ -29,6 +33,10 @@ func parseConfig() (*Config, error) {
 	flag.StringVar(&flagSecretKey, "k", "", "secret key for signature")
 	flag.StringVar(&flagAuditFilePath, "audit-file", "./audit/audit.log", "audit file path")
 	flag.StringVar(&flagAuditServiceURL, "audit-service", "", "external audit service URL")
+	flag.StringVar(&flagCryptoKey, "crypto-key", "", "path to private key file for decryption")
+	flag.BoolVar(&flagEnableHTTPS, "s", false, "enable HTTPS")
+	flag.StringVar(&flagTLSCertFile, "tls-cert", "./server.crt", "path to TLS certificate file")
+	flag.StringVar(&flagTLSKeyFile, "tls-key", "./server.key", "path to TLS private key file")
 	flag.Parse()
 
 	_ = godotenv.Load(".env")
@@ -66,6 +74,12 @@ func parseConfig() (*Config, error) {
 	}
 	cfg.AuditFilePath = optionalString(cfg.AuditFilePath, flagAuditFilePath)
 	cfg.AuditServiceURL = optionalString(cfg.AuditServiceURL, flagAuditServiceURL)
+	cfg.CryptoKey = optionalString(cfg.CryptoKey, flagCryptoKey)
+	if cfg.EnableHTTPS == nil {
+		cfg.EnableHTTPS = &flagEnableHTTPS
+	}
+	cfg.TLSCertFile = optionalString(cfg.TLSCertFile, flagTLSCertFile)
+	cfg.TLSKeyFile = optionalString(cfg.TLSKeyFile, flagTLSKeyFile)
 
 	return cfg, nil
 }
@@ -81,6 +95,10 @@ type Config struct {
 	SecretKey       *string `env:"KEY"`
 	AuditFilePath   *string `env:"AUDIT_FILE_PATH"`
 	AuditServiceURL *string `env:"AUDIT_SERVICE_URL"`
+	CryptoKey       *string `env:"CRYPTO_KEY"`
+	EnableHTTPS     *bool   `env:"ENABLE_HTTPS"`
+	TLSCertFile     *string `env:"TLS_CERT_FILE"`
+	TLSKeyFile      *string `env:"TLS_KEY_FILE"`
 }
 
 func (c *Config) GetAddress() *string {
@@ -120,6 +138,22 @@ func (c *Config) GetAuditFilePath() *string {
 
 func (c *Config) GetAuditServiceURL() *string {
 	return c.AuditServiceURL
+}
+
+func (c *Config) GetCryptoKey() *string {
+	return c.CryptoKey
+}
+
+func (c *Config) GetEnableHTTPS() *bool {
+	return c.EnableHTTPS
+}
+
+func (c *Config) GetTLSCertFile() *string {
+	return c.TLSCertFile
+}
+
+func (c *Config) GetTLSKeyFile() *string {
+	return c.TLSKeyFile
 }
 
 func optionalString(current *string, fallback string) *string {
