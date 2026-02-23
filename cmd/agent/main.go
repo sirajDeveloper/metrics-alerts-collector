@@ -71,7 +71,6 @@ func main() {
 		for {
 			select {
 			case <-ctx.Done():
-				collector.Report()
 				return
 			case <-ticker.C:
 				collector.Report()
@@ -94,12 +93,12 @@ func main() {
 	}()
 
 	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 
 	<-sigChan
 	log.Println("Shutting down gracefully...")
+	cancel()
 	reporter.Close()
-	time.Sleep(100 * time.Millisecond)
 	log.Println("Agent stopped")
 }
 
