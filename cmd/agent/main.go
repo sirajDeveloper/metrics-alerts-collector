@@ -7,11 +7,13 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/agent/infrastructure"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/agent/usecase"
+	"github.com/sirajDeveloper/metrics-alerts-collector/internal/buildinfo"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/logger"
 	"github.com/sirajDeveloper/metrics-alerts-collector/pkg/crypto"
 )
@@ -24,7 +26,7 @@ var (
 
 func main() {
 
-	printBuildInfo()
+	buildinfo.PrintBuildInfo()
 	ParseConfig()
 	logger.InitLogger(false)
 
@@ -50,7 +52,12 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	var wg sync.WaitGroup
+
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
+
 		ticker := time.NewTicker(time.Duration(pollInterval) * time.Second)
 		defer ticker.Stop()
 
@@ -64,7 +71,10 @@ func main() {
 		}
 	}()
 
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
+
 		ticker := time.NewTicker(time.Duration(reportInterval) * time.Second)
 		defer ticker.Stop()
 
@@ -78,7 +88,10 @@ func main() {
 		}
 	}()
 
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
+
 		ticker := time.NewTicker(time.Duration(pollInterval) * time.Second)
 		defer ticker.Stop()
 
@@ -98,25 +111,21 @@ func main() {
 	<-sigChan
 	log.Println("Shutting down gracefully...")
 	cancel()
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer shutdownCancel()
+
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-shutdownCtx.Done():
+		log.Println("Timeout waiting for background routines to finish")
+	}
+
 	reporter.Close()
 	log.Println("Agent stopped")
-}
-
-func printBuildInfo() {
-	version := buildVersion
-	if version == "" {
-		version = "N/A"
-	}
-	date := buildDate
-	if date == "" {
-		date = "N/A"
-	}
-	commit := buildCommit
-	if commit == "" {
-		commit = "N/A"
-	}
-
-	fmt.Fprintf(os.Stdout, "Build version: %s\n", version)
-	fmt.Fprintf(os.Stdout, "Build date: %s\n", date)
-	fmt.Fprintf(os.Stdout, "Build commit: %s\n", commit)
 }
