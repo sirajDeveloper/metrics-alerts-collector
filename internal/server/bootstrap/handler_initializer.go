@@ -63,7 +63,14 @@ func (h *HandlerInitializer) Initialize() *HandlerResult {
 		secretKey = *h.config.GetSecretKey()
 	}
 
-	chiRouter := router.NewChiRouter(h.metricUpdater, h.metricGetter, h.healthService, secretKey, h.auditPublisher, privateKey)
+	chiRouter := router.NewChiRouter(
+		h.metricUpdater,
+		h.metricGetter,
+		h.healthService,
+		secretKey,
+		h.auditPublisher,
+		privateKey,
+		h.config.GetTrustedSubnet())
 	server := &http.Server{
 		Addr:    *h.config.GetAddress(),
 		Handler: chiRouter.Handler(),
