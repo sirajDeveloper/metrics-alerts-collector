@@ -290,6 +290,10 @@ func (c *Config) GetTLSKeyFile() *string {
 	return c.TLSKeyFile
 }
 
+func (c *Config) GetTrustedSubnet() *string {
+	return c.TrustedSubnet
+}
+
 // optionalString returns current if non-nil and non-empty, else pointer to fallback or nil if fallback empty.
 func optionalString(current *string, fallback string) *string {
 	if current != nil && *current != "" {
