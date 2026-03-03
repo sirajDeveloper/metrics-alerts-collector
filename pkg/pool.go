@@ -16,12 +16,11 @@ type Pool[T Resetter] struct {
 
 // New создаёт и возвращает новый пул для типа T.
 // Функция создаёт sync.Pool с фабрикой, которая возвращает новый объект типа T.
-func New[T Resetter]() *Pool[T] {
+func New[T Resetter](factory func() T) *Pool[T] {
 	return &Pool[T]{
 		pool: &sync.Pool{
 			New: func() any {
-				var zero T
-				return zero
+				return factory()
 			},
 		},
 	}

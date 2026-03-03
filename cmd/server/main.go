@@ -16,12 +16,22 @@
 package main
 
 import (
+	"fmt"
+	"os"
+
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/logger"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/bootstrap"
 	"go.uber.org/zap"
 )
 
+var (
+	buildVersion string
+	buildDate    string
+	buildCommit  string
+)
+
 func main() {
+	printBuildInfo()
 	logger.InitLogger(false)
 
 	defer func() {
@@ -43,4 +53,23 @@ func main() {
 	if err := app.Run(); err != nil {
 		logger.Log.Fatal("App failed", zap.String("error", err.Error()))
 	}
+}
+
+func printBuildInfo() {
+	version := buildVersion
+	if version == "" {
+		version = "N/A"
+	}
+	date := buildDate
+	if date == "" {
+		date = "N/A"
+	}
+	commit := buildCommit
+	if commit == "" {
+		commit = "N/A"
+	}
+
+	fmt.Fprintf(os.Stdout, "Build version: %s\n", version)
+	fmt.Fprintf(os.Stdout, "Build date: %s\n", date)
+	fmt.Fprintf(os.Stdout, "Build commit: %s\n", commit)
 }
