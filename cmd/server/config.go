@@ -10,20 +10,21 @@ import (
 )
 
 type serverFileConfig struct {
-	Address         string `json:"address"`
-	StoreInterval   int    `json:"store_interval"`
-	FileStoragePath string `json:"file_storage_path"`
-	Restore         bool   `json:"restore"`
-	DatabaseDSN     string `json:"database_dsn"`
-	MigrationsPath  string `json:"migrations_path"`
-	CountRetrySave  int    `json:"count_retry_save"`
-	SecretKey       string `json:"secret_key"`
-	AuditFilePath   string `json:"audit_file_path"`
-	AuditServiceURL string `json:"audit_service_url"`
-	CryptoKey       string `json:"crypto_key"`
-	EnableHTTPS     bool   `json:"enable_https"`
-	TLSCertFile     string `json:"tls_cert_file"`
-	TLSKeyFile      string `json:"tls_key_file"`
+	Address         *string `json:"address"`
+	StoreInterval   *int    `json:"store_interval"`
+	FileStoragePath *string `json:"file_storage_path"`
+	Restore         *bool   `json:"restore"`
+	DatabaseDSN     *string `json:"database_dsn"`
+	MigrationsPath  *string `json:"migrations_path"`
+	CountRetrySave  *int    `json:"count_retry_save"`
+	SecretKey       *string `json:"secret_key"`
+	AuditFilePath   *string `json:"audit_file_path"`
+	AuditServiceURL *string `json:"audit_service_url"`
+	CryptoKey       *string `json:"crypto_key"`
+	EnableHTTPS     *bool   `json:"enable_https"`
+	TLSCertFile     *string `json:"tls_cert_file"`
+	TLSKeyFile      *string `json:"tls_key_file"`
+	TrustedSubnet   *string `json:"trusted_subnet"`
 }
 
 // parseConfig loads server configuration from file, environment and flags.
@@ -84,40 +85,53 @@ func readServerFileConfig(path string) (serverFileConfig, error) {
 // configFromFileStruct builds Config from parsed file config struct.
 func configFromFileStruct(fc serverFileConfig) *Config {
 	cfg := &Config{}
-	if fc.Address != "" {
-		cfg.Address = &fc.Address
+
+	if fc.Address != nil {
+		cfg.Address = fc.Address
 	}
-	cfg.StoreInterval = &fc.StoreInterval
-	if fc.FileStoragePath != "" {
-		cfg.FileStoragePath = &fc.FileStoragePath
+	if fc.StoreInterval != nil {
+		cfg.StoreInterval = fc.StoreInterval
 	}
-	cfg.Restore = &fc.Restore
-	if fc.DatabaseDSN != "" {
-		cfg.DatabaseDSN = &fc.DatabaseDSN
-		cfg.MigrationsPath = &fc.MigrationsPath
+	if fc.FileStoragePath != nil {
+		cfg.FileStoragePath = fc.FileStoragePath
 	}
-	if fc.CountRetrySave != 0 {
-		cfg.CountRetrySave = &fc.CountRetrySave
+	if fc.Restore != nil {
+		cfg.Restore = fc.Restore
 	}
-	if fc.SecretKey != "" {
-		cfg.SecretKey = &fc.SecretKey
+	if fc.DatabaseDSN != nil {
+		cfg.DatabaseDSN = fc.DatabaseDSN
 	}
-	if fc.AuditFilePath != "" {
-		cfg.AuditFilePath = &fc.AuditFilePath
+	if fc.MigrationsPath != nil {
+		cfg.MigrationsPath = fc.MigrationsPath
 	}
-	if fc.AuditServiceURL != "" {
-		cfg.AuditServiceURL = &fc.AuditServiceURL
+	if fc.CountRetrySave != nil {
+		cfg.CountRetrySave = fc.CountRetrySave
 	}
-	if fc.CryptoKey != "" {
-		cfg.CryptoKey = &fc.CryptoKey
+	if fc.SecretKey != nil {
+		cfg.SecretKey = fc.SecretKey
 	}
-	cfg.EnableHTTPS = &fc.EnableHTTPS
-	if fc.TLSCertFile != "" {
-		cfg.TLSCertFile = &fc.TLSCertFile
+	if fc.AuditFilePath != nil {
+		cfg.AuditFilePath = fc.AuditFilePath
 	}
-	if fc.TLSKeyFile != "" {
-		cfg.TLSKeyFile = &fc.TLSKeyFile
+	if fc.AuditServiceURL != nil {
+		cfg.AuditServiceURL = fc.AuditServiceURL
 	}
+	if fc.CryptoKey != nil {
+		cfg.CryptoKey = fc.CryptoKey
+	}
+	if fc.EnableHTTPS != nil {
+		cfg.EnableHTTPS = fc.EnableHTTPS
+	}
+	if fc.TLSCertFile != nil {
+		cfg.TLSCertFile = fc.TLSCertFile
+	}
+	if fc.TLSKeyFile != nil {
+		cfg.TLSKeyFile = fc.TLSKeyFile
+	}
+	if fc.TrustedSubnet != nil {
+		cfg.TrustedSubnet = fc.TrustedSubnet
+	}
+
 	return cfg
 }
 
@@ -144,6 +158,7 @@ func applyConfigFromFlags(cfg *Config) {
 	var flagEnableHTTPS bool
 	var flagTLSCertFile string
 	var flagTLSKeyFile string
+	var flagTrustedSubnet string
 
 	var configPathDummy string
 	flag.StringVar(&configPathDummy, "c", "", "config file path (JSON)")
@@ -162,6 +177,8 @@ func applyConfigFromFlags(cfg *Config) {
 	flag.BoolVar(&flagEnableHTTPS, "s", false, "enable HTTPS")
 	flag.StringVar(&flagTLSCertFile, "tls-cert", "./server.crt", "path to TLS certificate file")
 	flag.StringVar(&flagTLSKeyFile, "tls-key", "./server.key", "path to TLS private key file")
+	flag.StringVar(&flagTrustedSubnet, "trusted-subnet", "false", "trusted subnet ip address")
+
 	flag.Parse()
 
 	if cfg.Address == nil {
@@ -215,6 +232,7 @@ type Config struct {
 	EnableHTTPS     *bool   `env:"ENABLE_HTTPS"`
 	TLSCertFile     *string `env:"TLS_CERT_FILE"`
 	TLSKeyFile      *string `env:"TLS_KEY_FILE"`
+	TrustedSubnet   *string `env:"TRUSTED_SUBNET"`
 }
 
 func (c *Config) GetAddress() *string {
@@ -270,6 +288,10 @@ func (c *Config) GetTLSCertFile() *string {
 
 func (c *Config) GetTLSKeyFile() *string {
 	return c.TLSKeyFile
+}
+
+func (c *Config) GetTrustedSubnet() *string {
+	return c.TrustedSubnet
 }
 
 // optionalString returns current if non-nil and non-empty, else pointer to fallback or nil if fallback empty.

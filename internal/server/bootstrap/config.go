@@ -15,4 +15,5 @@ type Config interface {
 	GetEnableHTTPS() *bool
 	GetTLSCertFile() *string
 	GetTLSKeyFile() *string
+	GetTrustedSubnet() *string
 }
