@@ -108,6 +108,8 @@ func (s *HTTPSender) sendRequest(url string, reqBody interface{}) error {
 		req := s.client.R().
 			SetHeader("Content-Type", contentType).
 			SetHeader("HashSHA256", hashHex).
+			//todo правильно формировать на nginx/envoy, сделано для теста
+			SetHeader("X-Real-IP", "127.0.0.1").
 			SetBody(dataToSend)
 
 		if contentEncoding != "" {
