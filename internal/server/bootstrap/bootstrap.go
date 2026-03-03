@@ -23,6 +23,9 @@ type App struct {
 	schedCtx    context.Context
 	schedCancel context.CancelFunc
 	db          *sqlx.DB
+	enableHTTPS bool
+	tlsCertFile string
+	tlsKeyFile  string
 }
 
 func NewApp(cfg Config) *App {
@@ -50,15 +53,31 @@ func (a *App) Initialize() error {
 	a.scheduler = handlerResult.Scheduler
 	a.schedCtx = handlerResult.SchedCtx
 	a.schedCancel = handlerResult.SchedCancel
+	a.enableHTTPS = handlerResult.EnableHTTPS
+	a.tlsCertFile = handlerResult.TLSCertFile
+	a.tlsKeyFile = handlerResult.TLSKeyFile
 
 	return nil
 }
 
 func (a *App) Run() error {
 	go func() {
-		logger.Log.Info("Server starting on http://" + *a.config.GetAddress())
-		if err := a.server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			logger.Log.Fatal("Server failed to start", zap.String("error", err.Error()))
+		if a.enableHTTPS {
+			logger.Log.Info("Server starting on https://" + *a.config.GetAddress())
+
+			if a.tlsCertFile == "" || a.tlsKeyFile == "" {
+				logger.Log.Fatal("TLS certificate and key files are required when HTTPS is enabled")
+				return
+			}
+
+			if err := a.server.ListenAndServeTLS(a.tlsCertFile, a.tlsKeyFile); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				logger.Log.Fatal("Server failed to start", zap.String("error", err.Error()))
+			}
+		} else {
+			logger.Log.Info("Server starting on http://" + *a.config.GetAddress())
+			if err := a.server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				logger.Log.Fatal("Server failed to start", zap.String("error", err.Error()))
+			}
 		}
 	}()
 

@@ -1,0 +1,222 @@
+basePath: /
+definitions:
+  github_com_sirajDeveloper_metrics-alerts-collector_internal_server_usecase_dto.MetricUpdateRequest:
+    properties:
+      delta:
+        type: integer
+      id:
+        type: string
+      type:
+        type: string
+      value:
+        type: number
+    required:
+    - id
+    - type
+    type: object
+  github_com_sirajDeveloper_metrics-alerts-collector_internal_server_usecase_dto.MetricValueRequest:
+    properties:
+      id:
+        type: string
+      type:
+        type: string
+    required:
+    - id
+    - type
+    type: object
+  github_com_sirajDeveloper_metrics-alerts-collector_internal_server_usecase_dto.MetricValueResponse:
+    properties:
+      delta:
+        type: integer
+      id:
+        type: string
+      type:
+        type: string
+      value:
+        type: number
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: API сервера для сбора метрик и алертинга
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: Metrics Alerts Collector API
+  version: "1.0"
+paths:
+  /:
+    get:
+      description: Возвращает HTML-страницу со списком всех метрик
+      produces:
+      - text/html
+      responses:
+        "200":
+          description: HTML страница с метриками
+          schema:
+            type: string
+        "500":
+          description: Внутренняя ошибка сервера
+      summary: Получить все метрики
+      tags:
+      - metrics
+  /ping:
+    get:
+      description: Проверяет доступность базы данных
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+        "500":
+          description: База данных недоступна
+      summary: Проверка здоровья
+      tags:
+      - health
+  /update:
+    post:
+      consumes:
+      - application/json
+      description: Обновляет или создает метрику из JSON-тела запроса
+      parameters:
+      - description: Данные метрики
+        in: body
+        name: metric
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_sirajDeveloper_metrics-alerts-collector_internal_server_usecase_dto.MetricUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Метрика успешно обновлена
+        "400":
+          description: Некорректный формат запроса
+        "500":
+          description: Внутренняя ошибка сервера
+      summary: Обновить метрику
+      tags:
+      - metrics
+  /update/{type}/{name}/{value}:
+    post:
+      description: Обновляет метрику через параметры URL
+      parameters:
+      - description: Тип метрики
+        enum:
+        - gauge
+        - counter
+        in: path
+        name: type
+        required: true
+        type: string
+      - description: Имя метрики
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: Значение метрики
+        in: path
+        name: value
+        required: true
+        type: string
+      responses:
+        "200":
+          description: Метрика успешно обновлена
+        "400":
+          description: Некорректные параметры
+      summary: Обновить метрику через URL
+      tags:
+      - metrics
+  /updates:
+    post:
+      consumes:
+      - application/json
+      description: Обновляет множество метрик из JSON-массива запросов
+      parameters:
+      - description: Массив метрик
+        in: body
+        name: metrics
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/github_com_sirajDeveloper_metrics-alerts-collector_internal_server_usecase_dto.MetricUpdateRequest'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Все метрики успешно обновлены
+        "400":
+          description: Некорректный формат запроса
+        "500":
+          description: Внутренняя ошибка сервера
+      summary: Массовое обновление метрик
+      tags:
+      - metrics
+  /value:
+    post:
+      consumes:
+      - application/json
+      description: Возвращает значение метрики в формате JSON
+      parameters:
+      - description: Запрос метрики
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_sirajDeveloper_metrics-alerts-collector_internal_server_usecase_dto.MetricValueRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Значение метрики
+          schema:
+            $ref: '#/definitions/github_com_sirajDeveloper_metrics-alerts-collector_internal_server_usecase_dto.MetricValueResponse'
+        "404":
+          description: Метрика не найдена
+        "500":
+          description: Внутренняя ошибка сервера
+      summary: Получить значение метрики (JSON)
+      tags:
+      - metrics
+  /value/{type}/{name}:
+    get:
+      description: Возвращает значение метрики в виде строки через URL параметры
+      parameters:
+      - description: Тип метрики
+        enum:
+        - gauge
+        - counter
+        in: path
+        name: type
+        required: true
+        type: string
+      - description: Имя метрики
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: Значение метрики
+          schema:
+            type: string
+        "404":
+          description: Метрика не найдена
+        "500":
+          description: Внутренняя ошибка сервера
+      summary: Получить значение метрики (URL)
+      tags:
+      - metrics
+schemes:
+- http
+- https
+swagger: "2.0"

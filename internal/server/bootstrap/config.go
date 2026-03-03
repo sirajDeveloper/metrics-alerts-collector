@@ -11,4 +11,8 @@ type Config interface {
 	GetSecretKey() *string
 	GetAuditFilePath() *string
 	GetAuditServiceURL() *string
+	GetCryptoKey() *string
+	GetEnableHTTPS() *bool
+	GetTLSCertFile() *string
+	GetTLSKeyFile() *string
 }

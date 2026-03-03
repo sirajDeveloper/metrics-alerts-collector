@@ -7,7 +7,7 @@ import (
 )
 
 func BenchmarkHTTPSender_prepareMetricRequest(b *testing.B) {
-	sender := NewHTTPSender("http://localhost:8080", "", 1)
+	sender := NewHTTPSender("http://localhost:8080", "", 1, nil)
 
 	gaugeMetric := &domain.Metric{
 		Name:  "testGauge",

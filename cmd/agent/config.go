@@ -14,6 +14,7 @@ var (
 	countRetrySave int
 	secretKey      string
 	rateLimit      int
+	cryptoKeyPath  string
 )
 
 func ParseConfig() {
@@ -23,6 +24,7 @@ func ParseConfig() {
 	flag.IntVar(&countRetrySave, "retry", 3, "count of retry attempts for database save")
 	flag.StringVar(&secretKey, "k", "", "secret key for signature")
 	flag.IntVar(&rateLimit, "l", 1, "rate limit for concurrent requests")
+	flag.StringVar(&cryptoKeyPath, "crypto-key", "", "path to public key file for encryption")
 	flag.Parse()
 	var cfg Config
 	err := env.Parse(&cfg)
@@ -47,6 +49,9 @@ func ParseConfig() {
 	if cfg.RateLimit != 0 {
 		rateLimit = cfg.RateLimit
 	}
+	if cfg.CryptoKey != "" {
+		cryptoKeyPath = cfg.CryptoKey
+	}
 }
 
 type Config struct {
@@ -56,4 +61,5 @@ type Config struct {
 	CountRetrySave int    `env:"COUNT_RETRY_SAVE"`
 	SecretKey      string `env:"KEY"`
 	RateLimit      int    `env:"RATE_LIMIT"`
+	CryptoKey      string `env:"CRYPTO_KEY"`
 }
