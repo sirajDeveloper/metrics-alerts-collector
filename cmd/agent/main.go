@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/agent/infrastructure"
-	_ "github.com/sirajDeveloper/metrics-alerts-collector/internal/agent/infrastructure"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/agent/usecase"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/buildinfo"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/logger"
