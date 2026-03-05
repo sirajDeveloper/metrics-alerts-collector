@@ -11,6 +11,7 @@ import (
 
 type serverFileConfig struct {
 	Address         *string `json:"address"`
+	GrpcAddress     *string `json:"grpc_address"`
 	StoreInterval   *int    `json:"store_interval"`
 	FileStoragePath *string `json:"file_storage_path"`
 	Restore         *bool   `json:"restore"`
@@ -89,6 +90,9 @@ func configFromFileStruct(fc serverFileConfig) *Config {
 	if fc.Address != nil {
 		cfg.Address = fc.Address
 	}
+	if fc.GrpcAddress != nil {
+		cfg.GrpcAddress = fc.GrpcAddress
+	}
 	if fc.StoreInterval != nil {
 		cfg.StoreInterval = fc.StoreInterval
 	}
@@ -145,6 +149,7 @@ func applyConfigFromEnv(cfg *Config) error {
 // from flag values (flags have highest priority).
 func applyConfigFromFlags(cfg *Config) {
 	var flagAddress string
+	var flagGrpcAddress string
 	var flagStoreInterval int
 	var flagFileStoragePath string
 	var flagRestore bool
@@ -164,6 +169,7 @@ func applyConfigFromFlags(cfg *Config) {
 	flag.StringVar(&configPathDummy, "c", "", "config file path (JSON)")
 	flag.StringVar(&configPathDummy, "config", "", "config file path (JSON)")
 	flag.StringVar(&flagAddress, "a", "localhost:8080", "address and port to run server")
+	flag.StringVar(&flagGrpcAddress, "grpc-address", "localhost:3200", "address and port to run gRPC server")
 	flag.IntVar(&flagStoreInterval, "i", 300, "store interval seconds (0 = sync)")
 	flag.StringVar(&flagFileStoragePath, "f", "./metrics.json", "file storage path")
 	flag.BoolVar(&flagRestore, "r", true, "restore saved values on start")
@@ -183,6 +189,9 @@ func applyConfigFromFlags(cfg *Config) {
 
 	if cfg.Address == nil {
 		cfg.Address = &flagAddress
+	}
+	if cfg.GrpcAddress == nil {
+		cfg.GrpcAddress = &flagGrpcAddress
 	}
 	if cfg.StoreInterval == nil {
 		cfg.StoreInterval = &flagStoreInterval
@@ -219,6 +228,7 @@ func applyConfigFromFlags(cfg *Config) {
 // See parseConfig for load order: file < env < flags.
 type Config struct {
 	Address         *string `env:"ADDRESS"`
+	GrpcAddress     *string `env:"GRPC_ADDRESS"`
 	StoreInterval   *int    `env:"STORE_INTERVAL"`
 	FileStoragePath *string `env:"FILE_STORAGE_PATH"`
 	Restore         *bool   `env:"RESTORE"`
@@ -237,6 +247,10 @@ type Config struct {
 
 func (c *Config) GetAddress() *string {
 	return c.Address
+}
+
+func (c *Config) GetGRPCAddress() *string {
+	return c.GrpcAddress
 }
 
 func (c *Config) GetStoreInterval() *int {

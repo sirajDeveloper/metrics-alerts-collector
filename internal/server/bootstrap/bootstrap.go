@@ -3,6 +3,7 @@ package bootstrap
 import (
 	"context"
 	"errors"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -11,21 +12,24 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"go.uber.org/zap"
+	"google.golang.org/grpc"
 
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/logger"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/server/infrastructure/scheduler"
 )
 
 type App struct {
-	config      Config
-	server      *http.Server
-	scheduler   *scheduler.MetricEmitterScheduler
-	schedCtx    context.Context
-	schedCancel context.CancelFunc
-	db          *sqlx.DB
-	enableHTTPS bool
-	tlsCertFile string
-	tlsKeyFile  string
+	config       Config
+	server       *http.Server
+	scheduler    *scheduler.MetricEmitterScheduler
+	schedCtx     context.Context
+	schedCancel  context.CancelFunc
+	db           *sqlx.DB
+	enableHTTPS  bool
+	tlsCertFile  string
+	tlsKeyFile   string
+	grpcServer   *grpc.Server
+	grpcListener net.Listener
 }
 
 func NewApp(cfg Config) *App {
@@ -56,11 +60,22 @@ func (a *App) Initialize() error {
 	a.enableHTTPS = handlerResult.EnableHTTPS
 	a.tlsCertFile = handlerResult.TLSCertFile
 	a.tlsKeyFile = handlerResult.TLSKeyFile
+	a.grpcServer = handlerResult.GRPCServer
+	a.grpcListener = handlerResult.GRPCListener
 
 	return nil
 }
 
 func (a *App) Run() error {
+	if a.grpcServer != nil && a.grpcListener != nil {
+		go func() {
+			logger.Log.Info("gRPC server starting on " + a.grpcListener.Addr().String())
+			if err := a.grpcServer.Serve(a.grpcListener); err != nil {
+				logger.Log.Fatal("gRPC server failed to start", zap.String("error", err.Error()))
+			}
+		}()
+	}
+
 	go func() {
 		if a.enableHTTPS {
 			logger.Log.Info("Server starting on https://" + *a.config.GetAddress())
@@ -92,6 +107,10 @@ func (a *App) Shutdown() error {
 	logger.Log.Info("Shutting down gracefully...")
 	a.scheduler.Shutdown()
 	a.schedCancel()
+
+	if a.grpcServer != nil {
+		a.grpcServer.GracefulStop()
+	}
 
 	if a.db != nil {
 		defer a.db.Close()

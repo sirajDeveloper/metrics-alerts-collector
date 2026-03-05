@@ -10,7 +10,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/agent/usecase"
 
@@ -38,33 +37,6 @@ func NewHTTPSender(url, secretKey string, retryCount int, publicKey *rsa.PublicK
 		retryCount: retryCount,
 		publicKey:  publicKey,
 	}
-}
-
-func (s *HTTPSender) executeWithRetry(operation func() error) error {
-	for attempt := 1; attempt <= s.retryCount; attempt++ {
-		err := operation()
-		if err == nil {
-			return nil
-		}
-
-		if attempt < s.retryCount {
-			delay := time.Duration(2*attempt-1) * time.Second
-			logger.Log.Warn("operation failed, retrying",
-				zap.Int("attempt", attempt),
-				zap.Int("max_attempts", s.retryCount),
-				zap.Duration("delay", delay),
-				zap.Error(err))
-			time.Sleep(delay)
-			continue
-		}
-
-		logger.Log.Error("operation failed after all retry attempts",
-			zap.Int("attempts", s.retryCount),
-			zap.Error(err))
-		return err
-	}
-
-	return fmt.Errorf("operation failed")
 }
 
 func (s *HTTPSender) sendRequest(url string, reqBody interface{}) error {
@@ -102,7 +74,7 @@ func (s *HTTPSender) sendRequest(url string, reqBody interface{}) error {
 		hashHex = hex.EncodeToString(hash)
 	}
 
-	return s.executeWithRetry(func() error {
+	return ExecuteWithRetry(s.retryCount, func() error {
 		logger.Log.Info("Request to", zap.String("url", url))
 
 		req := s.client.R().

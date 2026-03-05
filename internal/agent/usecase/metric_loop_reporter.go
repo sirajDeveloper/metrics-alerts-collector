@@ -4,10 +4,6 @@ import (
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/agent/domain"
 )
 
-type MetricSender interface {
-	Send(metric *domain.Metric)
-}
-
 type MetricLoopReporter struct {
 	sender MetricSender
 }
