@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"crypto/rsa"
 	"fmt"
 	"log"
 	"os"
@@ -15,7 +14,9 @@ import (
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/agent/usecase"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/buildinfo"
 	"github.com/sirajDeveloper/metrics-alerts-collector/internal/logger"
-	"github.com/sirajDeveloper/metrics-alerts-collector/pkg/crypto"
+	"github.com/sirajDeveloper/metrics-alerts-collector/internal/proto"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 var (
@@ -30,7 +31,7 @@ func main() {
 	ParseConfig()
 	logger.InitLogger(false)
 
-	var publicKey *rsa.PublicKey
+	/*var publicKey *rsa.PublicKey
 	if cryptoKeyPath != "" {
 		key, err := crypto.LoadPublicKey(cryptoKeyPath)
 		if err != nil {
@@ -38,15 +39,19 @@ func main() {
 		}
 		publicKey = key
 		log.Printf("Public key loaded from: %s", cryptoKeyPath)
-	}
-
+	}*/
 	serverURL := "http://" + address
-	sender := infrastructure.NewHTTPSender(serverURL, secretKey, countRetrySave, publicKey)
+	conn, err := grpc.NewClient(grpcAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Fatalf("ошибка при установлении соединения с сервером %s", err)
+	}
+	defer conn.Close()
+	c := proto.NewMetricsClient(conn)
+	sender := infrastructure.NewMetricsClient(c, countRetrySave, 5*time.Second, agentIP)
+	//sender := infrastructure.NewHTTPSender(serverURL, secretKey, countRetrySave, publicKey)
 	fmt.Printf("HTTPSender init with serverURL: %v\n", serverURL)
 	fmt.Printf("Rate limit: %d concurrent requests\n", rateLimit)
-	reporter := usecase.NewMetricWorkerPoolReporter(sender, rateLimit)
-	reporter.Start()
-	//reporter := usecase.NewMetricLoopReporter(sender)
+	reporter := usecase.NewMetricBatchReporter(sender)
 	collector := usecase.NewCollector(reporter)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -126,6 +131,6 @@ func main() {
 		log.Println("Timeout waiting for background routines to finish")
 	}
 
-	reporter.Close()
+	//reporter.Close()
 	log.Println("Agent stopped")
 }

@@ -2,6 +2,7 @@ package bootstrap
 
 type Config interface {
 	GetAddress() *string
+	GetGRPCAddress() *string
 	GetStoreInterval() *int
 	GetFileStoragePath() *string
 	GetRestore() *bool
@@ -15,4 +16,5 @@ type Config interface {
 	GetEnableHTTPS() *bool
 	GetTLSCertFile() *string
 	GetTLSKeyFile() *string
+	GetTrustedSubnet() *string
 }

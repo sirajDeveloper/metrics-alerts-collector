@@ -11,22 +11,26 @@ import (
 
 var (
 	address        string
+	grpcAddress    string
 	reportInterval int
 	pollInterval   int
 	countRetrySave int
 	secretKey      string
 	rateLimit      int
 	cryptoKeyPath  string
+	agentIP        string
 )
 
 type fileConfig struct {
 	Address        string `json:"address"`
+	GrpcAddress    string `json:"grpc_address"`
 	ReportInterval int    `json:"report_interval"`
 	PollInterval   int    `json:"poll_interval"`
 	CountRetrySave int    `json:"count_retry_save"`
 	SecretKey      string `json:"secret_key"`
 	RateLimit      int    `json:"rate_limit"`
 	CryptoKey      string `json:"crypto_key"`
+	AgentIP        string `json:"agent_ip"`
 }
 
 // ParseConfig loads agent configuration from file, environment and flags.
@@ -72,6 +76,10 @@ func applyConfigFromFile(fc fileConfig) {
 	if fc.Address != "" {
 		address = fc.Address
 	}
+	grpcAddress = "localhost:3200"
+	if fc.GrpcAddress != "" {
+		grpcAddress = fc.GrpcAddress
+	}
 	pollInterval = 2
 	if fc.PollInterval != 0 {
 		pollInterval = fc.PollInterval
@@ -96,6 +104,10 @@ func applyConfigFromFile(fc fileConfig) {
 	if fc.CryptoKey != "" {
 		cryptoKeyPath = fc.CryptoKey
 	}
+	agentIP = "127.0.0.1"
+	if fc.AgentIP != "" {
+		agentIP = fc.AgentIP
+	}
 }
 
 // applyConfigFromEnv overwrites agent globals with environment variables (ADDRESS, KEY, etc.).
@@ -106,6 +118,9 @@ func applyConfigFromEnv() {
 	}
 	if envCfg.Address != "" {
 		address = envCfg.Address
+	}
+	if envCfg.GrpcAddress != "" {
+		grpcAddress = envCfg.GrpcAddress
 	}
 	if envCfg.PollInterval != 0 {
 		pollInterval = envCfg.PollInterval
@@ -125,6 +140,9 @@ func applyConfigFromEnv() {
 	if envCfg.CryptoKey != "" {
 		cryptoKeyPath = envCfg.CryptoKey
 	}
+	if envCfg.AgentIP != "" {
+		agentIP = envCfg.AgentIP
+	}
 }
 
 // applyConfigFromFlags defines flags with current globals as defaults, parses os.Args,
@@ -135,22 +153,26 @@ func applyConfigFromFlags(configPath string) {
 	flag.StringVar(&configPathDummy, "c", configPath, "config file path (JSON)")
 	flag.StringVar(&configPathDummy, "config", configPath, "config file path (JSON)")
 	flag.StringVar(&address, "a", address, "address and port to run server")
+	flag.StringVar(&grpcAddress, "grpc-address", grpcAddress, "gRPC server address")
 	flag.IntVar(&pollInterval, "p", pollInterval, "poll interval in seconds")
 	flag.IntVar(&reportInterval, "r", reportInterval, "report interval in seconds")
 	flag.IntVar(&countRetrySave, "retry", countRetrySave, "count of retry attempts for database save")
 	flag.StringVar(&secretKey, "k", secretKey, "secret key for signature")
 	flag.IntVar(&rateLimit, "l", rateLimit, "rate limit for concurrent requests")
 	flag.StringVar(&cryptoKeyPath, "crypto-key", cryptoKeyPath, "path to public key file for encryption")
+	flag.StringVar(&agentIP, "agent-ip", agentIP, "agent IP address for gRPC metadata")
 	flag.Parse()
 }
 
 // Config holds agent configuration parsed from environment (env tags).
 type Config struct {
 	Address        string `env:"ADDRESS"`
+	GrpcAddress    string `env:"GRPC_ADDRESS"`
 	ReportInterval int    `env:"REPORT_INTERVAL"`
 	PollInterval   int    `env:"POLL_INTERVAL"`
 	CountRetrySave int    `env:"COUNT_RETRY_SAVE"`
 	SecretKey      string `env:"KEY"`
 	RateLimit      int    `env:"RATE_LIMIT"`
 	CryptoKey      string `env:"CRYPTO_KEY"`
+	AgentIP        string `env:"AGENT_IP"`
 }

@@ -20,12 +20,23 @@ type ChiRouter struct {
 	metricsHandler *httpHandler.MetricsHandler
 	healthHandler  *httpHandler.HealthHandler
 	secretKey      string
+	trustedSubnet  *string
 }
 
-func NewChiRouter(metricUpdater usecase.MetricUpdater, metricGetter usecase.MetricGetter, healthChecker usecase.HealthChecker, secretKey string, auditPublisher event.AuditEventPublisher, privateKey *rsa.PrivateKey) *ChiRouter {
+func NewChiRouter(
+	metricUpdater usecase.MetricUpdater,
+	metricGetter usecase.MetricGetter,
+	healthChecker usecase.HealthChecker,
+	secretKey string,
+	auditPublisher event.AuditEventPublisher,
+	privateKey *rsa.PrivateKey,
+	trustedSubnet *string) *ChiRouter {
 	r := chi.NewRouter()
 
 	r.Use(chiMidware.Recoverer)
+	if trustedSubnet != nil && *trustedSubnet != "" {
+		r.Use(customMidWare.TrustedSubnetMiddleware(*trustedSubnet))
+	}
 	r.Use(customMidWare.LoggingMiddleware)
 	r.Use(customMidWare.GzipMiddleware)
 	if privateKey != nil {
@@ -64,6 +75,7 @@ func NewChiRouter(metricUpdater usecase.MetricUpdater, metricGetter usecase.Metr
 		router:         r,
 		metricsHandler: handler,
 		healthHandler:  healthHandler,
+		trustedSubnet:  trustedSubnet,
 	}
 }
 
